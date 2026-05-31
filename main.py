@@ -1,4 +1,3 @@
-
 import asyncio
 import hashlib
 import hmac
@@ -36,7 +35,7 @@ from telegram.ext import (
 # ─── CONFIG ───────────────────────────────────────────────────────────────────
 
 BOT_TOKEN  = "8864067739:AAGZZgGH9682pOVouzywEzvBXpYmo3GxBL4"
-WEBAPP_URL = "https://your-app.up.railway.app/app"
+WEBAPP_URL = "https://fuufoy-production.up.railway.app/app"
 OWNER_IDS  = [297562307, 6498621298]
 PORT       = int(os.environ.get("PORT", 8000))
 
