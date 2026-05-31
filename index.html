@@ -1,383 +1,636 @@
-import asyncio
-import hashlib
-import hmac
-import json
-import logging
-import os
-import random
-import sqlite3
-from contextlib import asynccontextmanager
-from urllib.parse import parse_qsl
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Casino</title>
+<script src="https://telegram.org/js/telegram-web-app.js"></script>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Nunito:wght@400;600;700;800&display=swap');
 
-import uvicorn
-from fastapi import FastAPI, HTTPException
-from fastapi.responses import HTMLResponse
-from fastapi.staticfiles import StaticFiles
-from pydantic import BaseModel
-from telegram import (
-    InlineKeyboardButton,
-    InlineKeyboardMarkup,
-    LabeledPrice,
-    Update,
-    WebAppInfo,
-)
-from telegram.ext import (
-    Application,
-    CallbackQueryHandler,
-    CommandHandler,
-    ContextTypes,
-    MessageHandler,
-    PreCheckoutQueryHandler,
-    filters,
-)
+:root {
+  --bg: #0d0d14;
+  --card: #15151f;
+  --border: #252535;
+  --gold: #f0b429;
+  --gold2: #e07b00;
+  --green: #3ddc84;
+  --red: #ff4d4d;
+  --text: #f0eaff;
+  --muted: #5a556e;
+}
 
-# ==================== КОНФИГУРАЦИЯ ====================
-BOT_TOKEN  = "8809004874:AAGXOZ58KnqhN1FxGS2qumV1T0Hio03bero"
-WEBAPP_URL = "https://fuufoy-production-ffaa.up.railway.app"
-OWNER_IDS  = [297562307, 6498621298]
-PORT       = int(os.environ.get("PORT", 8080))
+* { margin:0; padding:0; box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
 
-logging.basicConfig(level=logging.INFO)
-log = logging.getLogger(__name__)
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: 'Nunito', sans-serif;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding-bottom: 90px;
+  overflow-x: hidden;
+}
 
-# ==================== ПОДАРКИ (NFT) ====================
-GIFTS = [
-    {"id": "banana", "name": "Факел", "letter": "Ф"},
-    {"id": "lemon",  "name": "Рамен", "letter": "Р"},
-    {"id": "apple",  "name": "Змея", "letter": "З"},
-    {"id": "cherry", "name": "Мороженое", "letter": "М"},
-    {"id": "grape",  "name": "Happy B-day", "letter": "Д"},
-]
-CIGAR = {"id": "seven", "name": "Сигара", "letter": "С"}
+.topbar {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 16px 10px;
+}
+.logo {
+  font-family: 'Bebas Neue', sans-serif;
+  font-size: 26px;
+  letter-spacing: 3px;
+  color: var(--gold);
+  filter: drop-shadow(0 0 8px rgba(240,180,41,0.5));
+}
+.balance-pill {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 99px;
+  padding: 6px 14px;
+  font-size: 14px;
+  font-weight: 700;
+  display: flex; align-items: center; gap: 5px;
+}
+.balance-pill .s { color: var(--gold); }
 
-SPIN_COST   = 30
-WIN_2_STARS = 5
-OWNER_BONUS = 1000
+.tabs {
+  display: flex;
+  gap: 4px;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 4px;
+  margin: 0 16px 16px;
+  width: calc(100% - 32px);
+}
+.tab {
+  flex: 1;
+  padding: 8px;
+  border: none;
+  border-radius: 9px;
+  background: none;
+  color: var(--muted);
+  font-family: 'Nunito', sans-serif;
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all .2s;
+}
+.tab.active {
+  background: var(--border);
+  color: var(--text);
+}
 
-# ==================== БАЗА ДАННЫХ ====================
-DB = "casino.db"
+.page { width: 100%; display: none; flex-direction: column; align-items: center; }
+.page.active { display: flex; }
 
-def db():
-    c = sqlite3.connect(DB)
-    c.row_factory = sqlite3.Row
-    return c
+.machine {
+  width: calc(100% - 32px);
+  max-width: 360px;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  padding: 16px;
+  position: relative;
+  overflow: hidden;
+}
+.machine::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 10%; right: 10%;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, var(--gold), transparent);
+  opacity: .5;
+}
 
-def init_db():
-    c = db()
-    c.executescript("""
-        CREATE TABLE IF NOT EXISTS users (
-            user_id  INTEGER PRIMARY KEY,
-            username TEXT,
-            balance  INTEGER DEFAULT 0
-        );
-        CREATE TABLE IF NOT EXISTS inventory (
-            id       INTEGER PRIMARY KEY AUTOINCREMENT,
-            user_id  INTEGER,
-            gift_id  TEXT,
-            gift_name TEXT,
-            gift_file TEXT,
-            won_at   DATETIME DEFAULT CURRENT_TIMESTAMP
-        );
-    """)
-    c.commit()
-    c.close()
+.reels-outer {
+  background: #080810;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 4px;
+  position: relative;
+  overflow: hidden;
+}
 
-def ensure_user(user_id: int, username: str):
-    c = db()
-    row = c.execute("SELECT balance FROM users WHERE user_id=?", (user_id,)).fetchone()
-    
-    if not row:
-        if user_id in OWNER_IDS:
-            c.execute("INSERT INTO users (user_id, username, balance) VALUES (?,?,?)", 
-                      (user_id, username, OWNER_BONUS))
-        else:
-            c.execute("INSERT INTO users (user_id, username, balance) VALUES (?,?,?)", 
-                      (user_id, username, 0))
-    c.commit()
-    c.close()
+.reels-outer::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  top: calc(50% - 46px);
+  height: 92px;
+  background: rgba(240,180,41,.03);
+  border-top: 1px solid rgba(240,180,41,.12);
+  border-bottom: 1px solid rgba(240,180,41,.12);
+  pointer-events: none;
+}
 
-def get_balance(user_id: int) -> int:
-    c = db()
-    row = c.execute("SELECT balance FROM users WHERE user_id=?", (user_id,)).fetchone()
-    c.close()
-    return row["balance"] if row else 0
+.reels {
+  display: flex;
+  gap: 4px;
+}
 
-def add_balance(user_id: int, amount: int):
-    c = db()
-    c.execute("UPDATE users SET balance=balance+? WHERE user_id=?", (amount, user_id))
-    c.commit()
-    c.close()
+.reel {
+  flex: 1;
+  height: 276px;
+  overflow: hidden;
+  border-radius: 8px;
+  position: relative;
+}
+.reel::before, .reel::after {
+  content: '';
+  position: absolute;
+  left: 0; right: 0;
+  height: 50px;
+  z-index: 2;
+  pointer-events: none;
+}
+.reel::before { top: 0; background: linear-gradient(to bottom, #080810, transparent); }
+.reel::after { bottom: 0; background: linear-gradient(to top, #080810, transparent); }
 
-def deduct_balance(user_id: int, amount: int) -> bool:
-    c = db()
-    row = c.execute("SELECT balance FROM users WHERE user_id=?", (user_id,)).fetchone()
-    if not row or row["balance"] < amount:
-        c.close()
-        return False
-    c.execute("UPDATE users SET balance=balance-? WHERE user_id=?", (amount, user_id))
-    c.commit()
-    c.close()
-    return True
+.reel-inner {
+  display: flex;
+  flex-direction: column;
+}
 
-def add_to_inventory(user_id: int, gift: dict) -> int:
-    c = db()
-    cur = c.execute(
-        "INSERT INTO inventory (user_id, gift_id, gift_name, gift_file) VALUES (?,?,?,?)",
-        (user_id, gift["id"], gift["name"], gift["letter"])
-    )
-    item_id = cur.lastrowid
-    c.commit()
-    c.close()
-    return item_id
+.sym-cell {
+  height: 92px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  font-size: 64px;
+  font-weight: bold;
+}
 
-def get_inventory(user_id: int) -> list:
-    c = db()
-    rows = c.execute(
-        "SELECT * FROM inventory WHERE user_id=? ORDER BY won_at DESC", (user_id,)
-    ).fetchall()
-    c.close()
-    return [dict(r) for r in rows]
+@keyframes reelWin {
+  0%,100% { box-shadow: none; }
+  50% { box-shadow: 0 0 32px rgba(240,180,41,.7), inset 0 0 20px rgba(240,180,41,.08); }
+}
+.reels-outer.win { animation: reelWin .45s ease 3; }
 
-def remove_from_inventory(item_id: int, user_id: int) -> dict | None:
-    c = db()
-    row = c.execute(
-        "SELECT * FROM inventory WHERE id=? AND user_id=?", (item_id, user_id)
-    ).fetchone()
-    if not row:
-        c.close()
-        return None
-    c.execute("DELETE FROM inventory WHERE id=?", (item_id,))
-    c.commit()
-    c.close()
-    return dict(row)
+.win-msg {
+  min-height: 30px;
+  text-align: center;
+  font-size: 14px;
+  font-weight: 800;
+  padding: 8px 0 4px;
+  letter-spacing: .5px;
+  transition: opacity .3s;
+}
+.win-msg.gold { color: var(--gold); text-shadow: 0 0 12px rgba(240,180,41,.5); }
+.win-msg.green { color: var(--green); }
+.win-msg.muted { color: var(--muted); font-weight: 600; }
+.win-msg.err { color: var(--red); }
 
-# ==================== ЛОГИКА СЛОТОВ ====================
-def do_spin() -> dict:
-    r = random.random() * 100
-    
-    # 0.1% джекпот (777)
-    if r < 0.1:
-        return {"type": "jackpot", "symbols": ["seven"] * 3, "gift": CIGAR}
-    
-    # 0.5% для каждого из 5 подарков = 2.5%
-    elif r < 0.1 + 0.5:
-        return {"type": "three", "symbols": ["banana"] * 3, "gift": GIFTS[0]}
-    elif r < 0.6 + 0.5:
-        return {"type": "three", "symbols": ["lemon"] * 3, "gift": GIFTS[1]}
-    elif r < 1.1 + 0.5:
-        return {"type": "three", "symbols": ["apple"] * 3, "gift": GIFTS[2]}
-    elif r < 1.6 + 0.5:
-        return {"type": "three", "symbols": ["cherry"] * 3, "gift": GIFTS[3]}
-    elif r < 2.1 + 0.5:
-        return {"type": "three", "symbols": ["grape"] * 3, "gift": GIFTS[4]}
-    
-    # 10% на два одинаковых
-    elif r < 2.6 + 10:
-        sym = random.choice(GIFTS)["id"]
-        others = [g["id"] for g in GIFTS if g["id"] != sym]
-        third = random.choice(others)
-        symbols = [sym, sym, third]
-        random.shuffle(symbols)
-        return {"type": "two", "symbols": symbols, "stars": WIN_2_STARS}
-    
-    # Проигрыш (остальное)
-    else:
-        # Все разные символы
-        chosen = random.sample([g["id"] for g in GIFTS] + ["seven"], 3)
-        # Убедимся что не три одинаковых
-        while len(set(chosen)) == 1:
-            chosen = random.sample([g["id"] for g in GIFTS] + ["seven"], 3)
-        return {"type": "nothing", "symbols": chosen}
+.spin-btn {
+  width: 100%;
+  height: 52px;
+  background: linear-gradient(135deg, var(--gold2), var(--gold));
+  border: none;
+  border-radius: 12px;
+  font-family: 'Bebas Neue', sans-serif;
+  font-size: 22px;
+  letter-spacing: 3px;
+  color: #0d0d14;
+  cursor: pointer;
+  margin-top: 8px;
+  box-shadow: 0 4px 18px rgba(240,180,41,.25);
+  transition: opacity .2s, transform .1s;
+  position: relative;
+  overflow: hidden;
+}
+.spin-btn::before {
+  content: '';
+  position: absolute;
+  top: 0; left: -80%;
+  width: 50%;
+  height: 100%;
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,.2), transparent);
+  transition: left .5s;
+}
+.spin-btn:hover:not(:disabled)::before { left: 130%; }
+.spin-btn:active:not(:disabled) { transform: scale(.98); }
+.spin-btn:disabled { opacity: .35; cursor: not-allowed; }
 
-# ==================== ПРОВЕРКА ДАННЫХ ОТ TELEGRAM ====================
-def verify_init_data(init_data: str) -> dict | None:
-    try:
-        parsed = dict(parse_qsl(init_data, strict_parsing=True))
-        hash_val = parsed.pop("hash", None)
-        if not hash_val:
-            return None
-        check_str = "\n".join(f"{k}={v}" for k, v in sorted(parsed.items()))
-        secret = hmac.new(b"WebAppData", BOT_TOKEN.encode(), hashlib.sha256).digest()
-        expected = hmac.new(secret, check_str.encode(), hashlib.sha256).hexdigest()
-        if not hmac.compare_digest(expected, hash_val):
-            return None
-        return json.loads(parsed.get("user", "{}"))
-    except Exception:
-        return None
+.cost-label {
+  text-align: center;
+  font-size: 12px;
+  color: var(--muted);
+  margin-top: 6px;
+}
 
-# ==================== ТЕЛЕГРАМ БОТ ====================
-tg_app: Application = None
+.stats {
+  display: flex;
+  gap: 8px;
+  width: calc(100% - 32px);
+  max-width: 360px;
+  margin-top: 10px;
+}
+.stat {
+  flex: 1;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 10px 12px;
+}
+.stat-l { font-size: 10px; letter-spacing: 1.5px; text-transform: uppercase; color: var(--muted); margin-bottom: 3px; }
+.stat-v { font-size: 17px; font-weight: 800; }
 
-async def cmd_start(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
-    user = update.effective_user
-    ensure_user(user.id, user.username or user.first_name)
-    bal = get_balance(user.id)
-    
-    kb = InlineKeyboardMarkup([
-        [InlineKeyboardButton("🎰 Играть", web_app=WebAppInfo(url=WEBAPP_URL))],
-        [InlineKeyboardButton(f"⭐ Баланс: {bal}", callback_data="balance")],
-    ])
-    await update.message.reply_text(
-        f"Привет, {user.first_name}!\n\nДобро пожаловать в казино 🎰\nКрути — выигрывай подарки!",
-        reply_markup=kb
-    )
+.paytable-btn {
+  background: none;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  color: var(--muted);
+  font-family: 'Nunito', sans-serif;
+  font-size: 12px;
+  letter-spacing: 1px;
+  padding: 7px 16px;
+  cursor: pointer;
+  margin-top: 10px;
+  text-transform: uppercase;
+  transition: all .2s;
+  width: 100%;
+}
+.paytable-box {
+  display: none;
+  width: 100%;
+  background: #080810;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 12px;
+  margin-top: 6px;
+}
+.paytable-box.open { display: block; }
+.pt-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 6px 0;
+  border-bottom: 1px solid rgba(255,255,255,.04);
+  font-size: 13px;
+}
+.pt-row:last-child { border-bottom: none; }
+.pt-imgs { display: flex; gap: 2px; font-size: 24px; }
+.pt-reward { font-weight: 700; color: var(--gold); font-size: 13px; }
+.pt-chance { font-size: 11px; color: var(--muted); }
 
-async def cb_balance(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
-    q = update.callback_query
-    await q.answer()
-    bal = get_balance(q.from_user.id)
-    kb = InlineKeyboardMarkup([
-        [InlineKeyboardButton("💳 Пополнить", callback_data="topup")],
-        [InlineKeyboardButton("🔙 Назад", callback_data="back")],
-    ])
-    await q.edit_message_text(f"⭐ Твой баланс: *{bal} Stars*", parse_mode="Markdown", reply_markup=kb)
+.inv-page {
+  padding: 0 16px;
+  width: 100%;
+}
+.inv-empty {
+  text-align: center;
+  color: var(--muted);
+  font-size: 14px;
+  padding: 60px 0;
+}
+.inv-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+.inv-card {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 14px 10px 10px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+}
+.inv-letter {
+  font-size: 52px;
+  font-weight: 800;
+  color: var(--gold);
+}
+.inv-name {
+  font-size: 13px;
+  font-weight: 700;
+  text-align: center;
+}
+.withdraw-btn {
+  width: 100%;
+  background: linear-gradient(135deg, #2a2a3e, #333350);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  color: var(--text);
+  font-family: 'Nunito', sans-serif;
+  font-size: 12px;
+  font-weight: 700;
+  padding: 7px;
+  cursor: pointer;
+  transition: all .2s;
+}
+.withdraw-btn:hover { border-color: var(--gold); color: var(--gold); }
+.withdraw-btn:disabled { opacity: .4; cursor: not-allowed; }
 
-async def cb_topup(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
-    q = update.callback_query
-    await q.answer()
-    ctx.user_data["awaiting_topup"] = True
-    await q.edit_message_text(
-        "💳 Введи сумму пополнения (целое число, минимум 1):\n\nНапример: 50",
-        parse_mode="Markdown"
-    )
+.toast {
+  position: fixed;
+  bottom: 100px;
+  left: 50%;
+  transform: translateX(-50%) translateY(20px);
+  background: #1e1e2e;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 10px 20px;
+  font-size: 13px;
+  font-weight: 700;
+  opacity: 0;
+  transition: all .3s;
+  pointer-events: none;
+  white-space: nowrap;
+  z-index: 999;
+}
+.toast.show {
+  opacity: 1;
+  transform: translateX(-50%) translateY(0);
+}
+</style>
+</head>
+<body>
 
-async def cb_back(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
-    q = update.callback_query
-    await q.answer()
-    user = q.from_user
-    bal = get_balance(user.id)
-    kb = InlineKeyboardMarkup([
-        [InlineKeyboardButton("🎰 Играть", web_app=WebAppInfo(url=WEBAPP_URL))],
-        [InlineKeyboardButton(f"⭐ Баланс: {bal}", callback_data="balance")],
-    ])
-    await q.edit_message_text(
-        f"Привет, {user.first_name}!\n\nДобро пожаловать в казино 🎰\nКрути — выигрывай подарки!",
-        reply_markup=kb
-    )
+<div class="topbar">
+  <div class="logo">CASINO</div>
+  <div class="balance-pill"><span class="s">⭐</span><span id="balVal">—</span></div>
+</div>
 
-async def msg_handler(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
-    if not ctx.user_data.get("awaiting_topup"):
-        return
-    text = update.message.text.strip()
-    if not text.isdigit() or int(text) < 1:
-        await update.message.reply_text("❌ Целое число, минимум 1. Попробуй ещё раз:")
-        return
-    amount = int(text)
-    ctx.user_data["awaiting_topup"] = False
-    await update.message.reply_invoice(
-        title="Пополнение баланса",
-        description=f"Пополнение на {amount} Stars",
-        payload=f"topup_{update.effective_user.id}_{amount}",
-        currency="XTR",
-        prices=[LabeledPrice("Stars", amount)],
-    )
+<div class="tabs">
+  <button class="tab active" onclick="switchTab('slots')">🎰 Слоты</button>
+  <button class="tab" onclick="switchTab('inv')">🎁 Инвентарь</button>
+</div>
 
-async def precheckout(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
-    await update.pre_checkout_query.answer(ok=True)
+<div class="page active" id="page-slots">
+  <div class="machine">
+    <div class="reels-outer" id="reelsOuter">
+      <div class="reels">
+        <div class="reel"><div class="reel-inner" id="ri0"></div></div>
+        <div class="reel"><div class="reel-inner" id="ri1"></div></div>
+        <div class="reel"><div class="reel-inner" id="ri2"></div></div>
+      </div>
+    </div>
+    <div class="win-msg muted" id="winMsg">Нажми крутить!</div>
+    <button class="spin-btn" id="spinBtn" onclick="spin()">КРУТИТЬ</button>
+    <div class="cost-label">30 ⭐ за спин</div>
 
-async def payment_done(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
-    payload = update.message.successful_payment.invoice_payload
-    parts = payload.split("_")
-    user_id, amount = int(parts[1]), int(parts[2])
-    add_balance(user_id, amount)
-    await update.message.reply_text(
-        f"✅ Пополнено {amount} Stars!\nНовый баланс: {get_balance(user_id)} Stars",
-        parse_mode="Markdown"
-    )
+    <button class="paytable-btn" onclick="togglePt(this)">▸ Таблица выплат</button>
+    <div class="paytable-box" id="ptBox">
+      <div class="pt-row"><div class="pt-imgs">7 7 7</div><span class="pt-reward">Сигара (С)</span><span class="pt-chance">0.1%</span></div>
+      <div class="pt-row"><div class="pt-imgs">🍌 🍌 🍌</div><span class="pt-reward">Факел (Ф)</span><span class="pt-chance">0.5%</span></div>
+      <div class="pt-row"><div class="pt-imgs">🍋 🍋 🍋</div><span class="pt-reward">Рамен (Р)</span><span class="pt-chance">0.5%</span></div>
+      <div class="pt-row"><div class="pt-imgs">🍏 🍏 🍏</div><span class="pt-reward">Змея (З)</span><span class="pt-chance">0.5%</span></div>
+      <div class="pt-row"><div class="pt-imgs">🍒 🍒 🍒</div><span class="pt-reward">Мороженое (М)</span><span class="pt-chance">0.5%</span></div>
+      <div class="pt-row"><div class="pt-imgs">🍇 🍇 🍇</div><span class="pt-reward">Happy B-day (Д)</span><span class="pt-chance">0.5%</span></div>
+      <div class="pt-row"><div class="pt-imgs">🍌 🍌 🍋</div><span class="pt-reward">+5 ⭐</span><span class="pt-chance">10%</span></div>
+    </div>
+  </div>
 
-def build_tg_app():
-    global tg_app
-    tg_app = Application.builder().token(BOT_TOKEN).build()
-    tg_app.add_handler(CommandHandler("start", cmd_start))
-    tg_app.add_handler(CallbackQueryHandler(cb_balance, pattern="^balance$"))
-    tg_app.add_handler(CallbackQueryHandler(cb_topup,   pattern="^topup$"))
-    tg_app.add_handler(CallbackQueryHandler(cb_back,    pattern="^back$"))
-    tg_app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, msg_handler))
-    tg_app.add_handler(PreCheckoutQueryHandler(precheckout))
-    tg_app.add_handler(MessageHandler(filters.SUCCESSFUL_PAYMENT, payment_done))
-    return tg_app
+  <div class="stats">
+    <div class="stat"><div class="stat-l">Спинов</div><div class="stat-v" id="sSpins">0</div></div>
+    <div class="stat"><div class="stat-l">Выиграно</div><div class="stat-v" id="sWon">0</div></div>
+  </div>
+</div>
 
-# ==================== FASTAPI ====================
-@asynccontextmanager
-async def lifespan(app: FastAPI):
-    init_db()
-    build_tg_app()
-    await tg_app.initialize()
-    await tg_app.start()
-    await tg_app.updater.start_polling()
-    log.info("Bot polling started")
-    yield
-    await tg_app.updater.stop()
-    await tg_app.stop()
-    await tg_app.shutdown()
+<div class="page" id="page-inv">
+  <div class="inv-page">
+    <div id="invContent"></div>
+  </div>
+</div>
 
-api = FastAPI(lifespan=lifespan)
-api.mount("/imgs", StaticFiles(directory="."), name="imgs")
+<div class="toast" id="toast"></div>
 
-@api.get("/")
-async def serve_app():
-    if os.path.exists("index.html"):
-        with open("index.html", "r", encoding="utf-8") as f:
-            return HTMLResponse(content=f.read())
-    return {"error": "index.html not found"}
+<script>
+const tg = window.Telegram?.WebApp;
+tg?.expand();
+tg?.setHeaderColor?.('#0d0d14');
+tg?.setBackgroundColor?.('#0d0d14');
+const initData = tg?.initData || "";
+const API = window.location.origin;
 
-class SpinBody(BaseModel):
-    init_data: str
+function getEmoji(sym) {
+  const map = { seven: "7", banana: "🍌", lemon: "🍋", apple: "🍏", cherry: "🍒", grape: "🍇" };
+  return map[sym] || "?";
+}
 
-@api.post("/api/spin")
-async def route_spin(body: SpinBody):
-    user = verify_init_data(body.init_data)
-    if not user:
-        raise HTTPException(403, "Невалидный initData")
-    user_id = user["id"]
-    username = user.get("username") or user.get("first_name", "unknown")
-    ensure_user(user_id, username)
-    if not deduct_balance(user_id, SPIN_COST):
-        raise HTTPException(400, "Недостаточно Stars")
-    result = do_spin()
-    result["balance"] = get_balance(user_id)
-    if result["type"] in ("three", "jackpot"):
-        gift = result["gift"]
-        add_to_inventory(user_id, gift)
-        msg = f"🎁 Новый выигрыш!\n\nПодарок: {gift['name']}\nID: {user_id}\nЮзер: @{username}"
-        asyncio.create_task(asyncio.gather(*[tg_app.bot.send_message(oid, msg) for oid in OWNER_IDS]))
-    elif result["type"] == "two":
-        add_balance(user_id, WIN_2_STARS)
-        result["balance"] = get_balance(user_id)
-    return result
+const ALL_SYMS = ["banana", "lemon", "apple", "cherry", "grape", "seven"];
 
-@api.get("/api/balance")
-async def route_balance(init_data: str):
-    user = verify_init_data(init_data)
-    if not user:
-        raise HTTPException(403, "Невалидный initData")
-    ensure_user(user["id"], user.get("username", ""))
-    return {"balance": get_balance(user["id"])}
+let spinning = false;
+let stats = { spins: 0, won: 0 };
+let currentBalance = 0;
 
-@api.get("/api/inventory")
-async def route_inventory(init_data: str):
-    user = verify_init_data(init_data)
-    if not user:
-        raise HTTPException(403, "Невалидный initData")
-    return {"items": get_inventory(user["id"])}
+function switchTab(tab) {
+  document.querySelectorAll('.tab').forEach((t, i) => {
+    t.classList.toggle('active', (i === 0 && tab === 'slots') || (i === 1 && tab === 'inv'));
+  });
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.getElementById('page-' + (tab === 'slots' ? 'slots' : 'inv')).classList.add('active');
+  if (tab === 'inv') loadInventory();
+}
 
-class WithdrawBody(BaseModel):
-    init_data: str
-    item_id: int
+const EXTRA = 12;
+const CELL_H = 92;
 
-@api.post("/api/withdraw")
-async def route_withdraw(body: WithdrawBody):
-    user = verify_init_data(body.init_data)
-    if not user:
-        raise HTTPException(403, "Невалидный initData")
-    user_id = user["id"]
-    username = user.get("username") or user.get("first_name", "unknown")
-    item = remove_from_inventory(body.item_id, user_id)
-    if not item:
-        raise HTTPException(404, "Предмет не найден")
-    msg = f"📤 Запрос на вывод подарка!\n\nПодарок: {item['gift_name']}\nID: {user_id}\nЮзер: @{username}"
-    asyncio.create_task(asyncio.gather(*[tg_app.bot.send_message(oid, msg) for oid in OWNER_IDS]))
-    return {"ok": True}
+function buildReel(id, finalSyms) {
+  const inner = document.getElementById(id);
+  inner.innerHTML = '';
+  inner.style.transition = 'none';
+  inner.style.transform = 'translateY(0)';
+  const total = EXTRA * ALL_SYMS.length + 3;
+  const strip = [];
+  for (let i = 0; i < total - 3; i++) strip.push(ALL_SYMS[Math.floor(Math.random() * ALL_SYMS.length)]);
+  strip.push(...finalSyms);
+  strip.forEach(sym => {
+    const cell = document.createElement('div');
+    cell.className = 'sym-cell';
+    cell.textContent = getEmoji(sym);
+    inner.appendChild(cell);
+  });
+  return total;
+}
 
-if __name__ == "__main__":
-    uvicorn.run("main:api", host="0.0.0.0", port=PORT)
+function animReel(id, total, delay, duration) {
+  return new Promise(res => {
+    setTimeout(() => {
+      const inner = document.getElementById(id);
+      const targetY = -((total - 3) * CELL_H);
+      inner.style.transition = `transform ${duration}s cubic-bezier(0.22, 0.68, 0, 1.2)`;
+      inner.style.transform = `translateY(${targetY}px)`;
+      inner.addEventListener('transitionend', res, { once: true });
+    }, delay);
+  });
+}
+
+function initReels() {
+  for (let i = 0; i < 3; i++) {
+    const syms = [0, 1, 2].map(() => ALL_SYMS[Math.floor(Math.random() * ALL_SYMS.length)]);
+    buildReel(`ri${i}`, syms);
+  }
+}
+
+async function spin() {
+  if (spinning) return;
+  spinning = true;
+
+  const btn = document.getElementById('spinBtn');
+  const msg = document.getElementById('winMsg');
+  const outer = document.getElementById('reelsOuter');
+
+  btn.disabled = true;
+  msg.className = 'win-msg muted';
+  msg.textContent = '';
+  outer.className = 'reels-outer';
+
+  const apiCall = fetch(`${API}/api/spin`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ init_data: initData })
+  }).then(r => r.json()).catch(e => ({ error: e.message }));
+
+  for (let i = 0; i < 3; i++) {
+    const syms = [0, 1, 2].map(() => ALL_SYMS[Math.floor(Math.random() * ALL_SYMS.length)]);
+    buildReel(`ri${i}`, syms);
+  }
+  await new Promise(r => requestAnimationFrame(r));
+  await new Promise(r => requestAnimationFrame(r));
+
+  const fakeP = [];
+  for (let i = 0; i < 3; i++) {
+    const total = document.getElementById(`ri${i}`).children.length;
+    fakeP.push(animReel(`ri${i}`, total, i * 80, 0.55 + i * 0.08));
+  }
+
+  const [result] = await Promise.all([apiCall, Promise.all(fakeP)]);
+
+  if (result.error || result.detail) {
+    msg.className = 'win-msg err';
+    msg.textContent = result.detail || result.error;
+    spinning = false;
+    btn.disabled = false;
+    return;
+  }
+
+  for (let i = 0; i < 3; i++) buildReel(`ri${i}`, result.symbols);
+  await new Promise(r => requestAnimationFrame(r));
+  await new Promise(r => requestAnimationFrame(r));
+
+  const finalP = [];
+  for (let i = 0; i < 3; i++) {
+    const total = document.getElementById(`ri${i}`).children.length;
+    finalP.push(animReel(`ri${i}`, total, i * 100, 0.45 + i * 0.1));
+  }
+  await Promise.all(finalP);
+
+  currentBalance = result.balance;
+  document.getElementById('balVal').textContent = currentBalance;
+  stats.spins++;
+
+  if (result.type === 'jackpot' || result.type === 'three') {
+    outer.className = 'reels-outer win';
+    msg.className = 'win-msg gold';
+    msg.textContent = `🎁 Выиграл ${result.gift.name}!`;
+    stats.won++;
+    tg?.HapticFeedback?.notificationOccurred('success');
+    showToast(`${result.gift.name} в инвентаре!`);
+  } else if (result.type === 'two') {
+    msg.className = 'win-msg green';
+    msg.textContent = `+5 ⭐`;
+    tg?.HapticFeedback?.impactOccurred('medium');
+  } else {
+    msg.className = 'win-msg muted';
+    msg.textContent = '—';
+  }
+
+  document.getElementById('sSpins').textContent = stats.spins;
+  document.getElementById('sWon').textContent = stats.won;
+
+  spinning = false;
+  btn.disabled = false;
+}
+
+async function loadInventory() {
+  const cont = document.getElementById('invContent');
+  cont.innerHTML = '<div class="inv-empty">Загрузка...</div>';
+  try {
+    const res = await fetch(`${API}/api/inventory?init_data=${encodeURIComponent(initData)}`);
+    const data = await res.json();
+    const items = data.items || [];
+    if (!items.length) {
+      cont.innerHTML = '<div class="inv-empty">Инвентарь пуст<br><br>Выиграй подарок в слотах!</div>';
+      return;
+    }
+    const grid = document.createElement('div');
+    grid.className = 'inv-grid';
+    const letterMap = { 'Сигара': 'С', 'Факел': 'Ф', 'Рамен': 'Р', 'Змея': 'З', 'Мороженое': 'М', 'Happy B-day': 'Д' };
+    items.forEach(item => {
+      const letter = letterMap[item.gift_name] || '?';
+      const card = document.createElement('div');
+      card.className = 'inv-card';
+      card.id = `inv-${item.id}`;
+      card.innerHTML = `<div class="inv-letter">${letter}</div><div class="inv-name">${item.gift_name}</div><button class="withdraw-btn" onclick="withdraw(${item.id}, this)">📤 Вывести</button>`;
+      grid.appendChild(card);
+    });
+    cont.innerHTML = '';
+    cont.appendChild(grid);
+  } catch(e) {
+    cont.innerHTML = '<div class="inv-empty">Ошибка загрузки</div>';
+  }
+}
+
+async function withdraw(itemId, btn) {
+  btn.disabled = true;
+  btn.textContent = 'Отправка...';
+  try {
+    const res = await fetch(`${API}/api/withdraw`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ init_data: initData, item_id: itemId })
+    });
+    const data = await res.json();
+    if (data.ok) {
+      document.getElementById(`inv-${itemId}`)?.remove();
+      showToast('Запрос отправлен!');
+      const grid = document.querySelector('.inv-grid');
+      if (grid && !grid.children.length) loadInventory();
+    } else {
+      btn.disabled = false;
+      btn.textContent = '📤 Вывести';
+    }
+  } catch(e) {
+    btn.disabled = false;
+    btn.textContent = '📤 Вывести';
+  }
+}
+
+function showToast(text) {
+  const t = document.getElementById('toast');
+  t.textContent = text;
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 2000);
+}
+
+function togglePt(btn) {
+  const box = document.getElementById('ptBox');
+  box.classList.toggle('open');
+  btn.textContent = box.classList.contains('open') ? '▾ Таблица выплат' : '▸ Таблица выплат';
+}
+
+async function loadBalance() {
+  try {
+    const r = await fetch(`${API}/api/balance?init_data=${encodeURIComponent(initData)}`);
+    const d = await r.json();
+    currentBalance = d.balance ?? 0;
+    document.getElementById('balVal').textContent = currentBalance;
+  } catch {}
+}
+
+initReels();
+loadBalance();
+</script>
+</body>
+        </html>
