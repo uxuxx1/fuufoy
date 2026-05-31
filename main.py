@@ -52,6 +52,7 @@ CIGAR = {"id": "cigar", "name": "Сигара", "file": "cigar.png"}
 
 SPIN_COST   = 30
 WIN_2_STARS = 5
+OWNER_BONUS = 1000  # Бонус для владельца
 
 # ==================== БАЗА ДАННЫХ ====================
 DB = "casino.db"
@@ -83,7 +84,24 @@ def init_db():
 
 def ensure_user(user_id: int, username: str):
     c = db()
-    c.execute("INSERT OR IGNORE INTO users (user_id, username) VALUES (?,?)", (user_id, username))
+    # Проверяем, существует ли пользователь
+    row = c.execute("SELECT balance FROM users WHERE user_id=?", (user_id,)).fetchone()
+    
+    if not row:
+        # Новый пользователь
+        if user_id in OWNER_IDS:
+            # Владельцу даём 1000 звезд
+            c.execute("INSERT INTO users (user_id, username, balance) VALUES (?,?,?)", 
+                      (user_id, username, OWNER_BONUS))
+            log.info(f"Владелец {user_id} зарегистрирован с балансом {OWNER_BONUS} Stars")
+        else:
+            # Обычному пользователю 0 звезд
+            c.execute("INSERT INTO users (user_id, username, balance) VALUES (?,?,?)", 
+                      (user_id, username, 0))
+    else:
+        # Пользователь существует, ничего не делаем
+        pass
+    
     c.commit()
     c.close()
 
@@ -183,14 +201,18 @@ async def cmd_start(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
     user = update.effective_user
     ensure_user(user.id, user.username or user.first_name)
     bal = get_balance(user.id)
+    
+    # Если владелец, показываем особое сообщение
+    if user.id in OWNER_IDS:
+        start_text = f"👑 Привет, Владелец {user.first_name}!\n\nДобро пожаловать в казино 🎰\nТвой баланс: {bal} ⭐ (бонус 1000 ⭐)"
+    else:
+        start_text = f"Привет, {user.first_name}!\n\nДобро пожаловать в казино 🎰\nКрути — выигрывай подарки и звёзды."
+    
     kb = InlineKeyboardMarkup([
         [InlineKeyboardButton("🎰 Играть", web_app=WebAppInfo(url=WEBAPP_URL))],
         [InlineKeyboardButton(f"⭐ Баланс: {bal}", callback_data="balance")],
     ])
-    await update.message.reply_text(
-        f"Привет, {user.first_name}!\n\nДобро пожаловать в казино 🎰\nКрути — выигрывай подарки и звёзды.",
-        reply_markup=kb
-    )
+    await update.message.reply_text(start_text, reply_markup=kb)
 
 async def cb_balance(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
     q = update.callback_query
@@ -220,10 +242,13 @@ async def cb_back(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
         [InlineKeyboardButton("🎰 Играть", web_app=WebAppInfo(url=WEBAPP_URL))],
         [InlineKeyboardButton(f"⭐ Баланс: {bal}", callback_data="balance")],
     ])
-    await q.edit_message_text(
-        f"Привет, {user.first_name}!\n\nДобро пожаловать в казино 🎰\nКрути — выигрывай подарки и звёзды.",
-        reply_markup=kb
-    )
+    
+    if user.id in OWNER_IDS:
+        back_text = f"👑 Привет, Владелец {user.first_name}!\n\nДобро пожаловать в казино 🎰\nТвой баланс: {bal} ⭐ (бонус 1000 ⭐)"
+    else:
+        back_text = f"Привет, {user.first_name}!\n\nДобро пожаловать в казино 🎰\nКрути — выигрывай подарки и звёзды."
+    
+    await q.edit_message_text(back_text, reply_markup=kb)
 
 async def msg_handler(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
     if not ctx.user_data.get("awaiting_topup"):
@@ -289,11 +314,9 @@ api.mount("/imgs", StaticFiles(directory="."), name="imgs")
 # Главная страница
 @api.get("/")
 async def serve_app():
-    # Сначала пробуем index.html
     if os.path.exists("index.html"):
         with open("index.html", "r", encoding="utf-8") as f:
             return HTMLResponse(content=f.read())
-    # Если нет, пробуем index-1.html
     elif os.path.exists("index-1.html"):
         with open("index-1.html", "r", encoding="utf-8") as f:
             return HTMLResponse(content=f.read())
