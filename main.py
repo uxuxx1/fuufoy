@@ -11,7 +11,7 @@ from urllib.parse import parse_qsl
 
 import uvicorn
 from fastapi import FastAPI, HTTPException
-from fastapi.responses import HTMLResponse, FileResponse
+from fastapi.responses import HTMLResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 from telegram import (
@@ -40,19 +40,19 @@ PORT       = int(os.environ.get("PORT", 8080))
 logging.basicConfig(level=logging.INFO)
 log = logging.getLogger(__name__)
 
-# ==================== ПОДАРКИ ====================
+# ==================== ПОДАРКИ (NFT) ====================
 GIFTS = [
-    {"id": "torch",    "name": "Факел",      "file": "torch.png"},
-    {"id": "ramen",    "name": "Рамен",      "file": "ramen.png"},
-    {"id": "snake",    "name": "Змея",       "file": "snake.png"},
-    {"id": "icecream", "name": "Мороженое",  "file": "icecream.png"},
-    {"id": "happybday","name": "Happy B-day","file": "happybday.png"},
+    {"id": "banana", "name": "Факел", "letter": "Ф"},
+    {"id": "lemon",  "name": "Рамен", "letter": "Р"},
+    {"id": "apple",  "name": "Змея", "letter": "З"},
+    {"id": "cherry", "name": "Мороженое", "letter": "М"},
+    {"id": "grape",  "name": "Happy B-day", "letter": "Д"},
 ]
-CIGAR = {"id": "cigar", "name": "Сигара", "file": "cigar.png"}
+CIGAR = {"id": "seven", "name": "Сигара", "letter": "С"}
 
 SPIN_COST   = 30
 WIN_2_STARS = 5
-OWNER_BONUS = 1000  # Бонус для владельца
+OWNER_BONUS = 1000
 
 # ==================== БАЗА ДАННЫХ ====================
 DB = "casino.db"
@@ -84,24 +84,15 @@ def init_db():
 
 def ensure_user(user_id: int, username: str):
     c = db()
-    # Проверяем, существует ли пользователь
     row = c.execute("SELECT balance FROM users WHERE user_id=?", (user_id,)).fetchone()
     
     if not row:
-        # Новый пользователь
         if user_id in OWNER_IDS:
-            # Владельцу даём 1000 звезд
             c.execute("INSERT INTO users (user_id, username, balance) VALUES (?,?,?)", 
                       (user_id, username, OWNER_BONUS))
-            log.info(f"Владелец {user_id} зарегистрирован с балансом {OWNER_BONUS} Stars")
         else:
-            # Обычному пользователю 0 звезд
             c.execute("INSERT INTO users (user_id, username, balance) VALUES (?,?,?)", 
                       (user_id, username, 0))
-    else:
-        # Пользователь существует, ничего не делаем
-        pass
-    
     c.commit()
     c.close()
 
@@ -132,7 +123,7 @@ def add_to_inventory(user_id: int, gift: dict) -> int:
     c = db()
     cur = c.execute(
         "INSERT INTO inventory (user_id, gift_id, gift_name, gift_file) VALUES (?,?,?,?)",
-        (user_id, gift["id"], gift["name"], gift["file"])
+        (user_id, gift["id"], gift["name"], gift["letter"])
     )
     item_id = cur.lastrowid
     c.commit()
@@ -163,20 +154,41 @@ def remove_from_inventory(item_id: int, user_id: int) -> dict | None:
 # ==================== ЛОГИКА СЛОТОВ ====================
 def do_spin() -> dict:
     r = random.random() * 100
-    if r < 0.8:
-        return {"type": "jackpot", "symbols": [CIGAR["id"]] * 3, "gift": CIGAR}
-    elif r < 3.3:
-        gift = random.choice(GIFTS)
-        return {"type": "three", "symbols": [gift["id"]] * 3, "gift": gift}
-    elif r < 43.3:
-        sym = random.choice(GIFTS)["id"]
-        others = [g["id"] for g in GIFTS if g["id"] != sym]
-        third = random.choice(others)
-        symbols = [sym, sym, sym]
-        symbols[random.randint(0, 2)] = third
-        return {"type": "two", "symbols": symbols, "stars": WIN_2_STARS}
+    
+    # 0.5% джекпот (777)
+    if r < 0.5:
+        return {"type": "jackpot", "symbols": ["seven"] * 3, "gift": CIGAR}
+    
+    # 2% факел, 2% рамен, 2% змея, 2% мороженое, 2% happy b-day = всего 10%
+    elif r < 0.5 + 2:
+        gift = GIFTS[0]  # Факел
+        return {"type": "three", "symbols": ["banana"] * 3, "gift": gift}
+    elif r < 2.5 + 2:
+        gift = GIFTS[1]  # Рамен
+        return {"type": "three", "symbols": ["lemon"] * 3, "gift": gift}
+    elif r < 4.5 + 2:
+        gift = GIFTS[2]  # Змея
+        return {"type": "three", "symbols": ["apple"] * 3, "gift": gift}
+    elif r < 6.5 + 2:
+        gift = GIFTS[3]  # Мороженое
+        return {"type": "three", "symbols": ["cherry"] * 3, "gift": gift}
+    elif r < 8.5 + 2:
+        gift = GIFTS[4]  # Happy B-day
+        return {"type": "three", "symbols": ["grape"] * 3, "gift": gift}
+    
+    # Остальное (~89.5%)
     else:
-        return {"type": "nothing", "symbols": random.sample([g["id"] for g in GIFTS], 3)}
+        # 40% шанс на пару от общего (45% от остатка)
+        if random.random() < 0.45:
+            sym = random.choice(GIFTS)["id"]
+            others = [g["id"] for g in GIFTS if g["id"] != sym]
+            third = random.choice(others)
+            symbols = [sym, sym, third]
+            random.shuffle(symbols)
+            return {"type": "two", "symbols": symbols, "stars": WIN_2_STARS}
+        else:
+            chosen = random.sample([g["id"] for g in GIFTS], 3)
+            return {"type": "nothing", "symbols": chosen}
 
 # ==================== ПРОВЕРКА ДАННЫХ ОТ TELEGRAM ====================
 def verify_init_data(init_data: str) -> dict | None:
@@ -202,17 +214,14 @@ async def cmd_start(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
     ensure_user(user.id, user.username or user.first_name)
     bal = get_balance(user.id)
     
-    # Если владелец, показываем особое сообщение
-    if user.id in OWNER_IDS:
-        start_text = f"👑 Привет, Владелец {user.first_name}!\n\nДобро пожаловать в казино 🎰\nТвой баланс: {bal} ⭐ (бонус 1000 ⭐)"
-    else:
-        start_text = f"Привет, {user.first_name}!\n\nДобро пожаловать в казино 🎰\nКрути — выигрывай подарки и звёзды."
-    
     kb = InlineKeyboardMarkup([
         [InlineKeyboardButton("🎰 Играть", web_app=WebAppInfo(url=WEBAPP_URL))],
         [InlineKeyboardButton(f"⭐ Баланс: {bal}", callback_data="balance")],
     ])
-    await update.message.reply_text(start_text, reply_markup=kb)
+    await update.message.reply_text(
+        f"Привет, {user.first_name}!\n\nДобро пожаловать в казино 🎰",
+        reply_markup=kb
+    )
 
 async def cb_balance(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
     q = update.callback_query
@@ -242,13 +251,10 @@ async def cb_back(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
         [InlineKeyboardButton("🎰 Играть", web_app=WebAppInfo(url=WEBAPP_URL))],
         [InlineKeyboardButton(f"⭐ Баланс: {bal}", callback_data="balance")],
     ])
-    
-    if user.id in OWNER_IDS:
-        back_text = f"👑 Привет, Владелец {user.first_name}!\n\nДобро пожаловать в казино 🎰\nТвой баланс: {bal} ⭐ (бонус 1000 ⭐)"
-    else:
-        back_text = f"Привет, {user.first_name}!\n\nДобро пожаловать в казино 🎰\nКрути — выигрывай подарки и звёзды."
-    
-    await q.edit_message_text(back_text, reply_markup=kb)
+    await q.edit_message_text(
+        f"Привет, {user.first_name}!\n\nДобро пожаловать в казино 🎰",
+        reply_markup=kb
+    )
 
 async def msg_handler(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
     if not ctx.user_data.get("awaiting_topup"):
@@ -307,11 +313,8 @@ async def lifespan(app: FastAPI):
     await tg_app.shutdown()
 
 api = FastAPI(lifespan=lifespan)
-
-# Монтируем папку с картинками
 api.mount("/imgs", StaticFiles(directory="."), name="imgs")
 
-# Главная страница
 @api.get("/")
 async def serve_app():
     if os.path.exists("index.html"):
@@ -320,10 +323,8 @@ async def serve_app():
     elif os.path.exists("index-1.html"):
         with open("index-1.html", "r", encoding="utf-8") as f:
             return HTMLResponse(content=f.read())
-    else:
-        return {"error": "index.html not found"}
+    return {"error": "index.html not found"}
 
-# Эндпоинты API
 class SpinBody(BaseModel):
     init_data: str
 
@@ -378,10 +379,9 @@ async def route_withdraw(body: WithdrawBody):
     item = remove_from_inventory(body.item_id, user_id)
     if not item:
         raise HTTPException(404, "Предмет не найден")
-    msg = f"📤 Запрос на вывод подарка!\n\nПодарок: *{item['gift_name']}*\nID: `{user_id}`\nЮзер: @{username}\n\nОтправь подарок вручную 👆"
+    msg = f"📤 Запрос на вывод подарка!\n\nПодарок: *{item['gift_name']}*\nID: `{user_id}`\nЮзер: @{username}"
     asyncio.create_task(asyncio.gather(*[tg_app.bot.send_message(oid, msg, parse_mode="Markdown") for oid in OWNER_IDS]))
     return {"ok": True}
 
-# ==================== ЗАПУСК ====================
 if __name__ == "__main__":
     uvicorn.run("main:api", host="0.0.0.0", port=PORT)
