@@ -33,7 +33,7 @@ from telegram.ext import (
 
 # ==================== КОНФИГУРАЦИЯ ====================
 BOT_TOKEN  = "8864067739:AAGZZgGH9682pOVouzywEzvBXpYmo3GxBL4"
-WEBAPP_URL = "https://fuufoy-production.up.railway.app"
+WEBAPP_URL = "https://fuufoy-production-ffaa.up.railway.app"
 OWNER_IDS  = [297562307, 6498621298]
 PORT       = int(os.environ.get("PORT", 8080))
 
