@@ -34,7 +34,6 @@ body {
   overflow-x: hidden;
 }
 
-/* ── TOP BAR ── */
 .topbar {
   width: 100%;
   display: flex;
@@ -60,7 +59,6 @@ body {
 }
 .balance-pill .s { color: var(--gold); }
 
-/* ── TABS ── */
 .tabs {
   display: flex;
   gap: 4px;
@@ -89,11 +87,9 @@ body {
   color: var(--text);
 }
 
-/* ── PAGES ── */
 .page { width: 100%; display: none; flex-direction: column; align-items: center; }
 .page.active { display: flex; }
 
-/* ── SLOT MACHINE ── */
 .machine {
   width: calc(100% - 32px);
   max-width: 360px;
@@ -122,7 +118,6 @@ body {
   overflow: hidden;
 }
 
-/* payline */
 .reels-outer::after {
   content: '';
   position: absolute;
@@ -155,8 +150,8 @@ body {
   z-index: 2;
   pointer-events: none;
 }
-.reel::before { top: 0;    background: linear-gradient(to bottom, #080810, transparent); }
-.reel::after  { bottom: 0; background: linear-gradient(to top,   #080810, transparent); }
+.reel::before { top: 0; background: linear-gradient(to bottom, #080810, transparent); }
+.reel::after { bottom: 0; background: linear-gradient(to top, #080810, transparent); }
 
 .reel-inner {
   display: flex;
@@ -178,14 +173,12 @@ body {
   -webkit-user-drag: none;
 }
 
-/* win glow */
 @keyframes reelWin {
   0%,100% { box-shadow: none; }
   50% { box-shadow: 0 0 32px rgba(240,180,41,.7), inset 0 0 20px rgba(240,180,41,.08); }
 }
 .reels-outer.win { animation: reelWin .45s ease 3; }
 
-/* win message */
 .win-msg {
   min-height: 30px;
   text-align: center;
@@ -195,12 +188,11 @@ body {
   letter-spacing: .5px;
   transition: opacity .3s;
 }
-.win-msg.gold  { color: var(--gold);  text-shadow: 0 0 12px rgba(240,180,41,.5); }
+.win-msg.gold { color: var(--gold); text-shadow: 0 0 12px rgba(240,180,41,.5); }
 .win-msg.green { color: var(--green); }
 .win-msg.muted { color: var(--muted); font-weight: 600; }
-.win-msg.err   { color: var(--red); }
+.win-msg.err { color: var(--red); }
 
-/* spin btn */
 .spin-btn {
   width: 100%;
   height: 52px;
@@ -231,7 +223,6 @@ body {
 .spin-btn:active:not(:disabled) { transform: scale(.98); }
 .spin-btn:disabled { opacity: .35; cursor: not-allowed; }
 
-/* cost label */
 .cost-label {
   text-align: center;
   font-size: 12px;
@@ -239,7 +230,6 @@ body {
   margin-top: 6px;
 }
 
-/* session stats */
 .stats {
   display: flex;
   gap: 8px;
@@ -259,7 +249,6 @@ body {
 .stat-v.g { color: var(--green); }
 .stat-v.r { color: var(--red); }
 
-/* paytable */
 .paytable-btn {
   background: none;
   border: 1px solid var(--border);
@@ -297,9 +286,8 @@ body {
 .pt-imgs { display: flex; gap: 2px; }
 .pt-imgs img { width: 28px; height: 28px; object-fit: contain; }
 .pt-reward { font-weight: 700; color: var(--gold); font-size: 13px; }
-.pt-chance  { font-size: 11px; color: var(--muted); }
+.pt-chance { font-size: 11px; color: var(--muted); }
 
-/* ── INVENTORY ── */
 .inv-page {
   padding: 0 16px;
   width: 100%;
@@ -351,7 +339,6 @@ body {
 .withdraw-btn:hover { border-color: var(--gold); color: var(--gold); }
 .withdraw-btn:disabled { opacity: .4; cursor: not-allowed; }
 
-/* ── TOAST ── */
 .toast {
   position: fixed;
   bottom: 100px;
@@ -387,7 +374,6 @@ body {
   <button class="tab" onclick="switchTab('inv')">🎁 Инвентарь</button>
 </div>
 
-<!-- SLOTS PAGE -->
 <div class="page active" id="page-slots">
   <div class="machine">
     <div class="reels-outer" id="reelsOuter">
@@ -434,7 +420,6 @@ body {
   </div>
 </div>
 
-<!-- INVENTORY PAGE -->
 <div class="page" id="page-inv">
   <div class="inv-page">
     <div id="invContent"></div>
@@ -451,7 +436,6 @@ tg?.setBackgroundColor?.('#0d0d14');
 const initData = tg?.initData || "";
 const API = window.location.origin;
 
-// Gift images map
 const GIFT_IMGS = {
   torch:    "/torch.png",
   ramen:    "/ramen.png",
@@ -461,13 +445,11 @@ const GIFT_IMGS = {
   cigar:    "/cigar.png",
 };
 
-// All possible symbols for reel
 const ALL_SYMS = ["torch","ramen","snake","icecream","happybday","cigar"];
 
 let spinning = false;
 let stats = {spins:0, won:0, pl:0};
 
-// ── TABS ──────────────────────────────────────────────────────────────────────
 function switchTab(tab) {
   document.querySelectorAll('.tab').forEach((t,i) => {
     t.classList.toggle('active', (i===0 && tab==='slots') || (i===1 && tab==='inv'));
@@ -477,7 +459,6 @@ function switchTab(tab) {
   if (tab === 'inv') loadInventory();
 }
 
-// ── REELS ─────────────────────────────────────────────────────────────────────
 const EXTRA = 12;
 const CELL_H = 92;
 
@@ -524,7 +505,6 @@ function initReels() {
   }
 }
 
-// ── SPIN ──────────────────────────────────────────────────────────────────────
 async function spin() {
   if (spinning) return;
   spinning = true;
@@ -538,14 +518,12 @@ async function spin() {
   msg.textContent = '';
   outer.className = 'reels-outer';
 
-  // Start API call immediately
   const apiCall = fetch(`${API}/api/spin`, {
     method: 'POST',
     headers: {'Content-Type':'application/json'},
     body: JSON.stringify({init_data: initData})
   }).then(r => r.json()).catch(e => ({error: e.message}));
 
-  // Build and animate fake spin
   for (let i = 0; i < 3; i++) {
     const syms = [0,1,2].map(() => ALL_SYMS[Math.floor(Math.random()*ALL_SYMS.length)]);
     buildReel(`ri${i}`, syms);
@@ -553,14 +531,12 @@ async function spin() {
   await new Promise(r => requestAnimationFrame(r));
   await new Promise(r => requestAnimationFrame(r));
 
-  // Animate reels rolling fast
   const fakeP = [];
   for (let i = 0; i < 3; i++) {
     const total = document.getElementById(`ri${i}`).children.length;
     fakeP.push(animReel(`ri${i}`, total, i * 80, 0.55 + i * 0.08));
   }
 
-  // Wait for both API + animation
   const [result] = await Promise.all([apiCall, Promise.all(fakeP)]);
 
   if (result.error || result.detail) {
@@ -572,7 +548,6 @@ async function spin() {
     return;
   }
 
-  // Rebuild with real symbols and animate final drop
   for (let i = 0; i < 3; i++) {
     buildReel(`ri${i}`, result.symbols);
   }
@@ -586,10 +561,8 @@ async function spin() {
   }
   await Promise.all(finalP);
 
-  // Update balance
   document.getElementById('balVal').textContent = result.balance;
 
-  // Stats
   stats.spins++;
   stats.pl -= 30;
 
@@ -620,7 +593,6 @@ async function spin() {
   btn.disabled = false;
 }
 
-// ── INVENTORY ────────────────────────────────────────────────────────────────
 async function loadInventory() {
   const cont = document.getElementById('invContent');
   cont.innerHTML = '<div class="inv-empty">Загрузка...</div>';
@@ -672,7 +644,6 @@ async function withdraw(itemId, btn) {
     if (data.ok) {
       document.getElementById(`inv-${itemId}`)?.remove();
       showToast('Запрос отправлен! Ожидай подарок.');
-      // If grid empty, show empty state
       const grid = document.querySelector('.inv-grid');
       if (grid && !grid.children.length) loadInventory();
     } else {
@@ -685,7 +656,6 @@ async function withdraw(itemId, btn) {
   }
 }
 
-// ── TOAST ─────────────────────────────────────────────────────────────────────
 function showToast(text) {
   const t = document.getElementById('toast');
   t.textContent = text;
@@ -693,14 +663,12 @@ function showToast(text) {
   setTimeout(() => t.classList.remove('show'), 3000);
 }
 
-// ── PAYTABLE ──────────────────────────────────────────────────────────────────
 function togglePt(btn) {
   const box = document.getElementById('ptBox');
   box.classList.toggle('open');
   btn.textContent = box.classList.contains('open') ? '▾ Таблица выплат' : '▸ Таблица выплат';
 }
 
-// ── BALANCE ───────────────────────────────────────────────────────────────────
 async function loadBalance() {
   try {
     const r = await fetch(`${API}/api/balance?init_data=${encodeURIComponent(initData)}`);
@@ -709,7 +677,6 @@ async function loadBalance() {
   } catch {}
 }
 
-// ── INIT ──────────────────────────────────────────────────────────────────────
 initReels();
 loadBalance();
 </script>
