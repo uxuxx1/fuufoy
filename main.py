@@ -35,7 +35,7 @@ from telegram.ext import (
 # ─── CONFIG ───────────────────────────────────────────────────────────────────
 
 BOT_TOKEN  = "8864067739:AAGZZgGH9682pOVouzywEzvBXpYmo3GxBL4"
-WEBAPP_URL = "https://fuufoy-production.up.railway.app/app"
+WEBAPP_URL = "https://fuufoy-production.up.railway.app"
 OWNER_IDS  = [297562307, 6498621298]
 PORT       = int(os.environ.get("PORT", 8000))
 
@@ -55,12 +55,6 @@ CIGAR = {"id": "cigar", "name": "Сигара", "file": "cigar.png"}
 
 SPIN_COST   = 30
 WIN_2_STARS = 5
-
-# Probabilities (cumulative)
-# 0.8%  → 777 (cigar)
-# 2.5%  → XXX (random gift)
-# 40%   → XX  (5 stars)
-# rest  → nothing
 
 # ─── DATABASE ─────────────────────────────────────────────────────────────────
 
@@ -148,33 +142,24 @@ def remove_from_inventory(item_id: int, user_id: int) -> dict | None:
 # ─── SPIN LOGIC ───────────────────────────────────────────────────────────────
 
 def do_spin() -> dict:
-    """Returns result dict with type: 'nothing'|'two'|'three'|'jackpot'"""
-    r = random.random() * 100  # 0..100
+    r = random.random() * 100
 
     if r < 0.8:
-        # 777 jackpot — cigar
         symbols = [CIGAR["id"]] * 3
         return {"type": "jackpot", "symbols": symbols, "gift": CIGAR}
-
-    elif r < 3.3:  # 0.8 + 2.5
-        # XXX — random gift
+    elif r < 3.3:
         gift = random.choice(GIFTS)
         symbols = [gift["id"]] * 3
         return {"type": "three", "symbols": symbols, "gift": gift}
-
-    elif r < 43.3:  # 3.3 + 40
-        # XX — 5 stars, pick random symbol for the pair + different third
+    elif r < 43.3:
         sym = random.choice(GIFTS)["id"]
         others = [g["id"] for g in GIFTS if g["id"] != sym]
         third = random.choice(others)
-        # randomize position of the odd one
         pos = random.randint(0, 2)
         symbols = [sym, sym, sym]
         symbols[pos] = third
         return {"type": "two", "symbols": symbols, "stars": WIN_2_STARS}
-
     else:
-        # Nothing — all different
         chosen = random.sample([g["id"] for g in GIFTS], 3)
         return {"type": "nothing", "symbols": chosen}
 
@@ -205,11 +190,11 @@ async def cmd_start(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
     bal = get_balance(user.id)
 
     kb = InlineKeyboardMarkup([
-        [InlineKeyboardButton("Играть", web_app=WebAppInfo(url=WEBAPP_URL))],
-        [InlineKeyboardButton(f"Баланс: {bal}", callback_data="balance")],
+        [InlineKeyboardButton("🎰 Играть", web_app=WebAppInfo(url=WEBAPP_URL))],
+        [InlineKeyboardButton(f"⭐ Баланс: {bal}", callback_data="balance")],
     ])
     await update.message.reply_text(
-        f"Привет, {user.first_name}!\n\nДобро пожаловать в казино\nКрути — выигрывай подарки и звезды.",
+        f"Привет, {user.first_name}!\n\nДобро пожаловать в казино 🎰\nКрути — выигрывай подарки и звёзды.",
         reply_markup=kb
     )
 
@@ -218,17 +203,17 @@ async def cb_balance(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
     await q.answer()
     bal = get_balance(q.from_user.id)
     kb = InlineKeyboardMarkup([
-        [InlineKeyboardButton("Пополнить", callback_data="topup")],
-        [InlineKeyboardButton("Назад", callback_data="back")],
+        [InlineKeyboardButton("💳 Пополнить", callback_data="topup")],
+        [InlineKeyboardButton("🔙 Назад", callback_data="back")],
     ])
-    await q.edit_message_text(f"Твой баланс: {bal} Stars", parse_mode="Markdown", reply_markup=kb)
+    await q.edit_message_text(f"⭐ Твой баланс: *{bal} Stars*", parse_mode="Markdown", reply_markup=kb)
 
 async def cb_topup(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
     q = update.callback_query
     await q.answer()
     ctx.user_data["awaiting_topup"] = True
     await q.edit_message_text(
-        "Введи сумму пополнения (целое число, минимум 1):\n\nНапример: 50",
+        "💳 Введи сумму пополнения (целое число, минимум 1):\n\nНапример: `50`",
         parse_mode="Markdown"
     )
 
@@ -238,11 +223,11 @@ async def cb_back(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
     user = q.from_user
     bal = get_balance(user.id)
     kb = InlineKeyboardMarkup([
-        [InlineKeyboardButton("Играть", web_app=WebAppInfo(url=WEBAPP_URL))],
-        [InlineKeyboardButton(f"Баланс: {bal}", callback_data="balance")],
+        [InlineKeyboardButton("🎰 Играть", web_app=WebAppInfo(url=WEBAPP_URL))],
+        [InlineKeyboardButton(f"⭐ Баланс: {bal}", callback_data="balance")],
     ])
     await q.edit_message_text(
-        f"Привет, {user.first_name}!\n\nДобро пожаловать в казино\nКрути — выигрывай подарки и звезды.",
+        f"Привет, {user.first_name}!\n\nДобро пожаловать в казино 🎰\nКрути — выигрывай подарки и звёзды.",
         reply_markup=kb
     )
 
@@ -251,13 +236,13 @@ async def msg_handler(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
         return
     text = update.message.text.strip()
     if not text.isdigit() or int(text) < 1:
-        await update.message.reply_text("Целое число, минимум 1. Попробуй ещё раз:")
+        await update.message.reply_text("❌ Целое число, минимум 1. Попробуй ещё раз:")
         return
     amount = int(text)
     ctx.user_data["awaiting_topup"] = False
     await update.message.reply_invoice(
         title="Пополнение баланса",
-        description=f"Пополнение на {amount} Stars",
+        description=f"Пополнение на {amount} ⭐ Stars",
         payload=f"topup_{update.effective_user.id}_{amount}",
         currency="XTR",
         prices=[LabeledPrice("Stars", amount)],
@@ -272,7 +257,7 @@ async def payment_done(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
     user_id, amount = int(parts[1]), int(parts[2])
     add_balance(user_id, amount)
     await update.message.reply_text(
-        f"Пополнено {amount} Stars!\nНовый баланс: {get_balance(user_id)} Stars",
+        f"✅ Пополнено *{amount} ⭐*!\nНовый баланс: *{get_balance(user_id)} ⭐*",
         parse_mode="Markdown"
     )
 
@@ -306,7 +291,7 @@ async def lifespan(app: FastAPI):
 api = FastAPI(lifespan=lifespan)
 api.mount("/imgs", StaticFiles(directory="."), name="imgs")
 
-@api.get("/app")
+@api.get("/")
 async def serve_app():
     return FileResponse("index.html")
 
@@ -331,29 +316,24 @@ async def route_spin(body: SpinBody):
     result = do_spin()
     result["balance"] = get_balance(user_id)
 
-    # Handle winnings
     if result["type"] in ("three", "jackpot"):
         gift = result["gift"]
         item_id = add_to_inventory(user_id, gift)
         result["inventory_item_id"] = item_id
-        # Notify owner
         msg = (
-            f"Новый выигрыш!\n\n"
-            f"Подарок: {gift['name']}\n"
-            f"ID: {user_id}\n"
+            f"🎁 Новый выигрыш!\n\n"
+            f"Подарок: *{gift['name']}*\n"
+            f"ID: `{user_id}`\n"
             f"Юзер: @{username}"
         )
         asyncio.create_task(
             asyncio.gather(*[tg_app.bot.send_message(oid, msg, parse_mode="Markdown") for oid in OWNER_IDS])
         )
-
     elif result["type"] == "two":
         add_balance(user_id, WIN_2_STARS)
         result["balance"] = get_balance(user_id)
 
     return result
-
-# ── Balance endpoint ───────────────────────────────────────────────────────────
 
 @api.get("/api/balance")
 async def route_balance(init_data: str):
@@ -363,16 +343,12 @@ async def route_balance(init_data: str):
     ensure_user(user["id"], user.get("username", ""))
     return {"balance": get_balance(user["id"])}
 
-# ── Inventory endpoint ─────────────────────────────────────────────────────────
-
 @api.get("/api/inventory")
 async def route_inventory(init_data: str):
     user = verify_init_data(init_data)
     if not user:
         raise HTTPException(403, "Невалидный initData")
     return {"items": get_inventory(user["id"])}
-
-# ── Withdraw endpoint ──────────────────────────────────────────────────────────
 
 class WithdrawBody(BaseModel):
     init_data: str
@@ -392,11 +368,11 @@ async def route_withdraw(body: WithdrawBody):
         raise HTTPException(404, "Предмет не найден")
 
     msg = (
-        f"Запрос на вывод подарка!\n\n"
-        f"Подарок: {item['gift_name']}\n"
-        f"ID: {user_id}\n"
+        f"📤 Запрос на вывод подарка!\n\n"
+        f"Подарок: *{item['gift_name']}*\n"
+        f"ID: `{user_id}`\n"
         f"Юзер: @{username}\n\n"
-        f"Отправь подарок вручную"
+        f"Отправь подарок вручную 👆"
     )
     asyncio.create_task(
         asyncio.gather(*[tg_app.bot.send_message(oid, msg, parse_mode="Markdown") for oid in OWNER_IDS])
