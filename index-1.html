@@ -1,0 +1,717 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Casino</title>
+<script src="https://telegram.org/js/telegram-web-app.js"></script>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Nunito:wght@400;600;700;800&display=swap');
+
+:root {
+  --bg: #0d0d14;
+  --card: #15151f;
+  --border: #252535;
+  --gold: #f0b429;
+  --gold2: #e07b00;
+  --green: #3ddc84;
+  --red: #ff4d4d;
+  --text: #f0eaff;
+  --muted: #5a556e;
+}
+
+* { margin:0; padding:0; box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: 'Nunito', sans-serif;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding-bottom: 90px;
+  overflow-x: hidden;
+}
+
+/* ── TOP BAR ── */
+.topbar {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 16px 10px;
+}
+.logo {
+  font-family: 'Bebas Neue', sans-serif;
+  font-size: 26px;
+  letter-spacing: 3px;
+  color: var(--gold);
+  filter: drop-shadow(0 0 8px rgba(240,180,41,0.5));
+}
+.balance-pill {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 99px;
+  padding: 6px 14px;
+  font-size: 14px;
+  font-weight: 700;
+  display: flex; align-items: center; gap: 5px;
+}
+.balance-pill .s { color: var(--gold); }
+
+/* ── TABS ── */
+.tabs {
+  display: flex;
+  gap: 4px;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 4px;
+  margin: 0 16px 16px;
+  width: calc(100% - 32px);
+}
+.tab {
+  flex: 1;
+  padding: 8px;
+  border: none;
+  border-radius: 9px;
+  background: none;
+  color: var(--muted);
+  font-family: 'Nunito', sans-serif;
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all .2s;
+}
+.tab.active {
+  background: var(--border);
+  color: var(--text);
+}
+
+/* ── PAGES ── */
+.page { width: 100%; display: none; flex-direction: column; align-items: center; }
+.page.active { display: flex; }
+
+/* ── SLOT MACHINE ── */
+.machine {
+  width: calc(100% - 32px);
+  max-width: 360px;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  padding: 16px;
+  position: relative;
+  overflow: hidden;
+}
+.machine::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 10%; right: 10%;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, var(--gold), transparent);
+  opacity: .5;
+}
+
+.reels-outer {
+  background: #080810;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 4px;
+  position: relative;
+  overflow: hidden;
+}
+
+/* payline */
+.reels-outer::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  top: calc(50% - 46px);
+  height: 92px;
+  background: rgba(240,180,41,.03);
+  border-top: 1px solid rgba(240,180,41,.12);
+  border-bottom: 1px solid rgba(240,180,41,.12);
+  pointer-events: none;
+}
+
+.reels {
+  display: flex;
+  gap: 4px;
+}
+
+.reel {
+  flex: 1;
+  height: 276px;
+  overflow: hidden;
+  border-radius: 8px;
+  position: relative;
+}
+.reel::before, .reel::after {
+  content: '';
+  position: absolute;
+  left: 0; right: 0;
+  height: 50px;
+  z-index: 2;
+  pointer-events: none;
+}
+.reel::before { top: 0;    background: linear-gradient(to bottom, #080810, transparent); }
+.reel::after  { bottom: 0; background: linear-gradient(to top,   #080810, transparent); }
+
+.reel-inner {
+  display: flex;
+  flex-direction: column;
+}
+
+.sym-cell {
+  height: 92px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+.sym-cell img {
+  width: 64px;
+  height: 64px;
+  object-fit: contain;
+  user-select: none;
+  -webkit-user-drag: none;
+}
+
+/* win glow */
+@keyframes reelWin {
+  0%,100% { box-shadow: none; }
+  50% { box-shadow: 0 0 32px rgba(240,180,41,.7), inset 0 0 20px rgba(240,180,41,.08); }
+}
+.reels-outer.win { animation: reelWin .45s ease 3; }
+
+/* win message */
+.win-msg {
+  min-height: 30px;
+  text-align: center;
+  font-size: 14px;
+  font-weight: 800;
+  padding: 8px 0 4px;
+  letter-spacing: .5px;
+  transition: opacity .3s;
+}
+.win-msg.gold  { color: var(--gold);  text-shadow: 0 0 12px rgba(240,180,41,.5); }
+.win-msg.green { color: var(--green); }
+.win-msg.muted { color: var(--muted); font-weight: 600; }
+.win-msg.err   { color: var(--red); }
+
+/* spin btn */
+.spin-btn {
+  width: 100%;
+  height: 52px;
+  background: linear-gradient(135deg, var(--gold2), var(--gold));
+  border: none;
+  border-radius: 12px;
+  font-family: 'Bebas Neue', sans-serif;
+  font-size: 22px;
+  letter-spacing: 3px;
+  color: #0d0d14;
+  cursor: pointer;
+  margin-top: 8px;
+  box-shadow: 0 4px 18px rgba(240,180,41,.25);
+  transition: opacity .2s, transform .1s;
+  position: relative;
+  overflow: hidden;
+}
+.spin-btn::before {
+  content: '';
+  position: absolute;
+  top: 0; left: -80%;
+  width: 50%;
+  height: 100%;
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,.2), transparent);
+  transition: left .5s;
+}
+.spin-btn:hover:not(:disabled)::before { left: 130%; }
+.spin-btn:active:not(:disabled) { transform: scale(.98); }
+.spin-btn:disabled { opacity: .35; cursor: not-allowed; }
+
+/* cost label */
+.cost-label {
+  text-align: center;
+  font-size: 12px;
+  color: var(--muted);
+  margin-top: 6px;
+}
+
+/* session stats */
+.stats {
+  display: flex;
+  gap: 8px;
+  width: calc(100% - 32px);
+  max-width: 360px;
+  margin-top: 10px;
+}
+.stat {
+  flex: 1;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 10px 12px;
+}
+.stat-l { font-size: 10px; letter-spacing: 1.5px; text-transform: uppercase; color: var(--muted); margin-bottom: 3px; }
+.stat-v { font-size: 17px; font-weight: 800; }
+.stat-v.g { color: var(--green); }
+.stat-v.r { color: var(--red); }
+
+/* paytable */
+.paytable-btn {
+  background: none;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  color: var(--muted);
+  font-family: 'Nunito', sans-serif;
+  font-size: 12px;
+  letter-spacing: 1px;
+  padding: 7px 16px;
+  cursor: pointer;
+  margin-top: 10px;
+  text-transform: uppercase;
+  transition: all .2s;
+  width: 100%;
+}
+.paytable-box {
+  display: none;
+  width: 100%;
+  background: #080810;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 12px;
+  margin-top: 6px;
+}
+.paytable-box.open { display: block; }
+.pt-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 6px 0;
+  border-bottom: 1px solid rgba(255,255,255,.04);
+  font-size: 13px;
+}
+.pt-row:last-child { border-bottom: none; }
+.pt-imgs { display: flex; gap: 2px; }
+.pt-imgs img { width: 28px; height: 28px; object-fit: contain; }
+.pt-reward { font-weight: 700; color: var(--gold); font-size: 13px; }
+.pt-chance  { font-size: 11px; color: var(--muted); }
+
+/* ── INVENTORY ── */
+.inv-page {
+  padding: 0 16px;
+  width: 100%;
+}
+.inv-empty {
+  text-align: center;
+  color: var(--muted);
+  font-size: 14px;
+  padding: 60px 0;
+}
+.inv-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+.inv-card {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 14px 10px 10px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+}
+.inv-card img {
+  width: 72px;
+  height: 72px;
+  object-fit: contain;
+}
+.inv-name {
+  font-size: 13px;
+  font-weight: 700;
+  text-align: center;
+}
+.withdraw-btn {
+  width: 100%;
+  background: linear-gradient(135deg, #2a2a3e, #333350);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  color: var(--text);
+  font-family: 'Nunito', sans-serif;
+  font-size: 12px;
+  font-weight: 700;
+  padding: 7px;
+  cursor: pointer;
+  transition: all .2s;
+}
+.withdraw-btn:hover { border-color: var(--gold); color: var(--gold); }
+.withdraw-btn:disabled { opacity: .4; cursor: not-allowed; }
+
+/* ── TOAST ── */
+.toast {
+  position: fixed;
+  bottom: 100px;
+  left: 50%;
+  transform: translateX(-50%) translateY(20px);
+  background: #1e1e2e;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 10px 20px;
+  font-size: 13px;
+  font-weight: 700;
+  opacity: 0;
+  transition: all .3s;
+  pointer-events: none;
+  white-space: nowrap;
+  z-index: 999;
+}
+.toast.show {
+  opacity: 1;
+  transform: translateX(-50%) translateY(0);
+}
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <div class="logo">CASINO</div>
+  <div class="balance-pill"><span class="s">⭐</span><span id="balVal">—</span></div>
+</div>
+
+<div class="tabs">
+  <button class="tab active" onclick="switchTab('slots')">🎰 Слоты</button>
+  <button class="tab" onclick="switchTab('inv')">🎁 Инвентарь</button>
+</div>
+
+<!-- SLOTS PAGE -->
+<div class="page active" id="page-slots">
+  <div class="machine">
+    <div class="reels-outer" id="reelsOuter">
+      <div class="reels">
+        <div class="reel"><div class="reel-inner" id="ri0"></div></div>
+        <div class="reel"><div class="reel-inner" id="ri1"></div></div>
+        <div class="reel"><div class="reel-inner" id="ri2"></div></div>
+      </div>
+    </div>
+    <div class="win-msg muted" id="winMsg">Нажми крутить!</div>
+    <button class="spin-btn" id="spinBtn" onclick="spin()">КРУТИТЬ</button>
+    <div class="cost-label">30 ⭐ за спин</div>
+
+    <button class="paytable-btn" onclick="togglePt(this)">▸ Таблица выплат</button>
+    <div class="paytable-box" id="ptBox">
+      <div class="pt-row">
+        <div class="pt-imgs">
+          <img src="cigar.png"><img src="cigar.png"><img src="cigar.png">
+        </div>
+        <span class="pt-reward">Сигара</span>
+        <span class="pt-chance">0.8%</span>
+      </div>
+      <div class="pt-row">
+        <div class="pt-imgs">
+          <img src="torch.png"><img src="torch.png"><img src="torch.png">
+        </div>
+        <span class="pt-reward">Подарок</span>
+        <span class="pt-chance">2.5%</span>
+      </div>
+      <div class="pt-row">
+        <div class="pt-imgs">
+          <img src="ramen.png"><img src="ramen.png"><span style="font-size:22px;opacity:.3">✕</span>
+        </div>
+        <span class="pt-reward">+5 ⭐</span>
+        <span class="pt-chance">40%</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="stats">
+    <div class="stat"><div class="stat-l">Спинов</div><div class="stat-v" id="sSpins">0</div></div>
+    <div class="stat"><div class="stat-l">Выиграно</div><div class="stat-v g" id="sWon">0</div></div>
+    <div class="stat"><div class="stat-l">П/Л</div><div class="stat-v" id="sPL">0</div></div>
+  </div>
+</div>
+
+<!-- INVENTORY PAGE -->
+<div class="page" id="page-inv">
+  <div class="inv-page">
+    <div id="invContent"></div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+const tg = window.Telegram?.WebApp;
+tg?.expand();
+tg?.setHeaderColor?.('#0d0d14');
+tg?.setBackgroundColor?.('#0d0d14');
+const initData = tg?.initData || "";
+const API = window.location.origin;
+
+// Gift images map
+const GIFT_IMGS = {
+  torch:    "/torch.png",
+  ramen:    "/ramen.png",
+  snake:    "/snake.png",
+  icecream: "/icecream.png",
+  happybday:"/happybday.png",
+  cigar:    "/cigar.png",
+};
+
+// All possible symbols for reel
+const ALL_SYMS = ["torch","ramen","snake","icecream","happybday","cigar"];
+
+let spinning = false;
+let stats = {spins:0, won:0, pl:0};
+
+// ── TABS ──────────────────────────────────────────────────────────────────────
+function switchTab(tab) {
+  document.querySelectorAll('.tab').forEach((t,i) => {
+    t.classList.toggle('active', (i===0 && tab==='slots') || (i===1 && tab==='inv'));
+  });
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.getElementById('page-' + (tab==='slots'?'slots':'inv')).classList.add('active');
+  if (tab === 'inv') loadInventory();
+}
+
+// ── REELS ─────────────────────────────────────────────────────────────────────
+const EXTRA = 12;
+const CELL_H = 92;
+
+function buildReel(id, finalSyms) {
+  const inner = document.getElementById(id);
+  inner.innerHTML = '';
+  inner.style.transition = 'none';
+  inner.style.transform = 'translateY(0)';
+
+  const total = EXTRA * ALL_SYMS.length + 3;
+  const strip = [];
+  for (let i = 0; i < total - 3; i++)
+    strip.push(ALL_SYMS[Math.floor(Math.random() * ALL_SYMS.length)]);
+  strip.push(...finalSyms);
+
+  strip.forEach(sym => {
+    const cell = document.createElement('div');
+    cell.className = 'sym-cell';
+    const img = document.createElement('img');
+    img.src = GIFT_IMGS[sym];
+    img.draggable = false;
+    cell.appendChild(img);
+    inner.appendChild(cell);
+  });
+  return total;
+}
+
+function animReel(id, total, delay, duration) {
+  return new Promise(res => {
+    setTimeout(() => {
+      const inner = document.getElementById(id);
+      const targetY = -((total - 3) * CELL_H);
+      inner.style.transition = `transform ${duration}s cubic-bezier(0.22, 0.68, 0, 1.2)`;
+      inner.style.transform = `translateY(${targetY}px)`;
+      inner.addEventListener('transitionend', res, { once: true });
+    }, delay);
+  });
+}
+
+function initReels() {
+  for (let i = 0; i < 3; i++) {
+    const syms = [0,1,2].map(() => ALL_SYMS[Math.floor(Math.random()*ALL_SYMS.length)]);
+    buildReel(`ri${i}`, syms);
+  }
+}
+
+// ── SPIN ──────────────────────────────────────────────────────────────────────
+async function spin() {
+  if (spinning) return;
+  spinning = true;
+
+  const btn = document.getElementById('spinBtn');
+  const msg = document.getElementById('winMsg');
+  const outer = document.getElementById('reelsOuter');
+
+  btn.disabled = true;
+  msg.className = 'win-msg muted';
+  msg.textContent = '';
+  outer.className = 'reels-outer';
+
+  // Start API call immediately
+  const apiCall = fetch(`${API}/api/spin`, {
+    method: 'POST',
+    headers: {'Content-Type':'application/json'},
+    body: JSON.stringify({init_data: initData})
+  }).then(r => r.json()).catch(e => ({error: e.message}));
+
+  // Build and animate fake spin
+  for (let i = 0; i < 3; i++) {
+    const syms = [0,1,2].map(() => ALL_SYMS[Math.floor(Math.random()*ALL_SYMS.length)]);
+    buildReel(`ri${i}`, syms);
+  }
+  await new Promise(r => requestAnimationFrame(r));
+  await new Promise(r => requestAnimationFrame(r));
+
+  // Animate reels rolling fast
+  const fakeP = [];
+  for (let i = 0; i < 3; i++) {
+    const total = document.getElementById(`ri${i}`).children.length;
+    fakeP.push(animReel(`ri${i}`, total, i * 80, 0.55 + i * 0.08));
+  }
+
+  // Wait for both API + animation
+  const [result] = await Promise.all([apiCall, Promise.all(fakeP)]);
+
+  if (result.error || result.detail) {
+    const errText = result.detail || result.error;
+    msg.className = 'win-msg err';
+    msg.textContent = errText;
+    spinning = false;
+    btn.disabled = false;
+    return;
+  }
+
+  // Rebuild with real symbols and animate final drop
+  for (let i = 0; i < 3; i++) {
+    buildReel(`ri${i}`, result.symbols);
+  }
+  await new Promise(r => requestAnimationFrame(r));
+  await new Promise(r => requestAnimationFrame(r));
+
+  const finalP = [];
+  for (let i = 0; i < 3; i++) {
+    const total = document.getElementById(`ri${i}`).children.length;
+    finalP.push(animReel(`ri${i}`, total, i * 100, 0.45 + i * 0.1));
+  }
+  await Promise.all(finalP);
+
+  // Update balance
+  document.getElementById('balVal').textContent = result.balance;
+
+  // Stats
+  stats.spins++;
+  stats.pl -= 30;
+
+  if (result.type === 'jackpot' || result.type === 'three') {
+    outer.className = 'reels-outer win';
+    msg.className = 'win-msg gold';
+    msg.textContent = `Выиграл подарок: ${result.gift.name}!`;
+    stats.won++;
+    tg?.HapticFeedback?.notificationOccurred('success');
+    showToast(`${result.gift.name} в инвентаре!`);
+  } else if (result.type === 'two') {
+    msg.className = 'win-msg green';
+    msg.textContent = `+5 ⭐ — два одинаковых!`;
+    stats.pl += 5;
+    tg?.HapticFeedback?.impactOccurred('medium');
+  } else {
+    msg.className = 'win-msg muted';
+    msg.textContent = '— ничего —';
+  }
+
+  document.getElementById('sSpins').textContent = stats.spins;
+  document.getElementById('sWon').textContent = stats.won;
+  const plEl = document.getElementById('sPL');
+  plEl.textContent = (stats.pl >= 0 ? '+' : '') + stats.pl;
+  plEl.className = 'stat-v ' + (stats.pl >= 0 ? 'g' : 'r');
+
+  spinning = false;
+  btn.disabled = false;
+}
+
+// ── INVENTORY ────────────────────────────────────────────────────────────────
+async function loadInventory() {
+  const cont = document.getElementById('invContent');
+  cont.innerHTML = '<div class="inv-empty">Загрузка...</div>';
+
+  try {
+    const res = await fetch(`${API}/api/inventory?init_data=${encodeURIComponent(initData)}`);
+    const data = await res.json();
+    const items = data.items || [];
+
+    if (!items.length) {
+      cont.innerHTML = '<div class="inv-empty">Инвентарь пуст<br><br>Выиграй подарок в слотах!</div>';
+      return;
+    }
+
+    const grid = document.createElement('div');
+    grid.className = 'inv-grid';
+
+    items.forEach(item => {
+      const card = document.createElement('div');
+      card.className = 'inv-card';
+      card.id = `inv-${item.id}`;
+      card.innerHTML = `
+        <img src="/${item.gift_file}" alt="${item.gift_name}">
+        <div class="inv-name">${item.gift_name}</div>
+        <button class="withdraw-btn" onclick="withdraw(${item.id}, this)">📤 Вывести</button>
+      `;
+      grid.appendChild(card);
+    });
+
+    cont.innerHTML = '';
+    cont.appendChild(grid);
+  } catch(e) {
+    cont.innerHTML = '<div class="inv-empty">Ошибка загрузки</div>';
+  }
+}
+
+async function withdraw(itemId, btn) {
+  btn.disabled = true;
+  btn.textContent = 'Отправка...';
+
+  try {
+    const res = await fetch(`${API}/api/withdraw`, {
+      method: 'POST',
+      headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({init_data: initData, item_id: itemId})
+    });
+    const data = await res.json();
+
+    if (data.ok) {
+      document.getElementById(`inv-${itemId}`)?.remove();
+      showToast('Запрос отправлен! Ожидай подарок.');
+      // If grid empty, show empty state
+      const grid = document.querySelector('.inv-grid');
+      if (grid && !grid.children.length) loadInventory();
+    } else {
+      btn.disabled = false;
+      btn.textContent = '📤 Вывести';
+    }
+  } catch(e) {
+    btn.disabled = false;
+    btn.textContent = '📤 Вывести';
+  }
+}
+
+// ── TOAST ─────────────────────────────────────────────────────────────────────
+function showToast(text) {
+  const t = document.getElementById('toast');
+  t.textContent = text;
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 3000);
+}
+
+// ── PAYTABLE ──────────────────────────────────────────────────────────────────
+function togglePt(btn) {
+  const box = document.getElementById('ptBox');
+  box.classList.toggle('open');
+  btn.textContent = box.classList.contains('open') ? '▾ Таблица выплат' : '▸ Таблица выплат';
+}
+
+// ── BALANCE ───────────────────────────────────────────────────────────────────
+async function loadBalance() {
+  try {
+    const r = await fetch(`${API}/api/balance?init_data=${encodeURIComponent(initData)}`);
+    const d = await r.json();
+    document.getElementById('balVal').textContent = d.balance ?? '—';
+  } catch {}
+}
+
+// ── INIT ──────────────────────────────────────────────────────────────────────
+initReels();
+loadBalance();
+</script>
+</body>
+</html>
