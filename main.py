@@ -155,40 +155,39 @@ def remove_from_inventory(item_id: int, user_id: int) -> dict | None:
 def do_spin() -> dict:
     r = random.random() * 100
     
-    # 0.5% джекпот (777)
-    if r < 0.5:
+    # 0.1% джекпот (777)
+    if r < 0.1:
         return {"type": "jackpot", "symbols": ["seven"] * 3, "gift": CIGAR}
     
-    # 2% факел, 2% рамен, 2% змея, 2% мороженое, 2% happy b-day = всего 10%
-    elif r < 0.5 + 2:
-        gift = GIFTS[0]  # Факел
-        return {"type": "three", "symbols": ["banana"] * 3, "gift": gift}
-    elif r < 2.5 + 2:
-        gift = GIFTS[1]  # Рамен
-        return {"type": "three", "symbols": ["lemon"] * 3, "gift": gift}
-    elif r < 4.5 + 2:
-        gift = GIFTS[2]  # Змея
-        return {"type": "three", "symbols": ["apple"] * 3, "gift": gift}
-    elif r < 6.5 + 2:
-        gift = GIFTS[3]  # Мороженое
-        return {"type": "three", "symbols": ["cherry"] * 3, "gift": gift}
-    elif r < 8.5 + 2:
-        gift = GIFTS[4]  # Happy B-day
-        return {"type": "three", "symbols": ["grape"] * 3, "gift": gift}
+    # 0.5% для каждого из 5 подарков = 2.5%
+    elif r < 0.1 + 0.5:
+        return {"type": "three", "symbols": ["banana"] * 3, "gift": GIFTS[0]}
+    elif r < 0.6 + 0.5:
+        return {"type": "three", "symbols": ["lemon"] * 3, "gift": GIFTS[1]}
+    elif r < 1.1 + 0.5:
+        return {"type": "three", "symbols": ["apple"] * 3, "gift": GIFTS[2]}
+    elif r < 1.6 + 0.5:
+        return {"type": "three", "symbols": ["cherry"] * 3, "gift": GIFTS[3]}
+    elif r < 2.1 + 0.5:
+        return {"type": "three", "symbols": ["grape"] * 3, "gift": GIFTS[4]}
     
-    # Остальное (~89.5%)
+    # 10% на два одинаковых
+    elif r < 2.6 + 10:
+        sym = random.choice(GIFTS)["id"]
+        others = [g["id"] for g in GIFTS if g["id"] != sym]
+        third = random.choice(others)
+        symbols = [sym, sym, third]
+        random.shuffle(symbols)
+        return {"type": "two", "symbols": symbols, "stars": WIN_2_STARS}
+    
+    # Проигрыш (остальное)
     else:
-        # 40% шанс на пару от общего (45% от остатка)
-        if random.random() < 0.45:
-            sym = random.choice(GIFTS)["id"]
-            others = [g["id"] for g in GIFTS if g["id"] != sym]
-            third = random.choice(others)
-            symbols = [sym, sym, third]
-            random.shuffle(symbols)
-            return {"type": "two", "symbols": symbols, "stars": WIN_2_STARS}
-        else:
-            chosen = random.sample([g["id"] for g in GIFTS], 3)
-            return {"type": "nothing", "symbols": chosen}
+        # Все разные символы
+        chosen = random.sample([g["id"] for g in GIFTS] + ["seven"], 3)
+        # Убедимся что не три одинаковых
+        while len(set(chosen)) == 1:
+            chosen = random.sample([g["id"] for g in GIFTS] + ["seven"], 3)
+        return {"type": "nothing", "symbols": chosen}
 
 # ==================== ПРОВЕРКА ДАННЫХ ОТ TELEGRAM ====================
 def verify_init_data(init_data: str) -> dict | None:
@@ -219,7 +218,7 @@ async def cmd_start(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
         [InlineKeyboardButton(f"⭐ Баланс: {bal}", callback_data="balance")],
     ])
     await update.message.reply_text(
-        f"Привет, {user.first_name}!\n\nДобро пожаловать в казино 🎰",
+        f"Привет, {user.first_name}!\n\nДобро пожаловать в казино 🎰\nКрути — выигрывай подарки!",
         reply_markup=kb
     )
 
@@ -238,7 +237,7 @@ async def cb_topup(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
     await q.answer()
     ctx.user_data["awaiting_topup"] = True
     await q.edit_message_text(
-        "💳 Введи сумму пополнения (целое число, минимум 1):\n\nНапример: `50`",
+        "💳 Введи сумму пополнения (целое число, минимум 1):\n\nНапример: 50",
         parse_mode="Markdown"
     )
 
@@ -252,7 +251,7 @@ async def cb_back(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
         [InlineKeyboardButton(f"⭐ Баланс: {bal}", callback_data="balance")],
     ])
     await q.edit_message_text(
-        f"Привет, {user.first_name}!\n\nДобро пожаловать в казино 🎰",
+        f"Привет, {user.first_name}!\n\nДобро пожаловать в казино 🎰\nКрути — выигрывай подарки!",
         reply_markup=kb
     )
 
@@ -267,7 +266,7 @@ async def msg_handler(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
     ctx.user_data["awaiting_topup"] = False
     await update.message.reply_invoice(
         title="Пополнение баланса",
-        description=f"Пополнение на {amount} ⭐ Stars",
+        description=f"Пополнение на {amount} Stars",
         payload=f"topup_{update.effective_user.id}_{amount}",
         currency="XTR",
         prices=[LabeledPrice("Stars", amount)],
@@ -282,7 +281,7 @@ async def payment_done(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
     user_id, amount = int(parts[1]), int(parts[2])
     add_balance(user_id, amount)
     await update.message.reply_text(
-        f"✅ Пополнено *{amount} ⭐*!\nНовый баланс: *{get_balance(user_id)} ⭐*",
+        f"✅ Пополнено {amount} Stars!\nНовый баланс: {get_balance(user_id)} Stars",
         parse_mode="Markdown"
     )
 
@@ -320,9 +319,6 @@ async def serve_app():
     if os.path.exists("index.html"):
         with open("index.html", "r", encoding="utf-8") as f:
             return HTMLResponse(content=f.read())
-    elif os.path.exists("index-1.html"):
-        with open("index-1.html", "r", encoding="utf-8") as f:
-            return HTMLResponse(content=f.read())
     return {"error": "index.html not found"}
 
 class SpinBody(BaseModel):
@@ -343,8 +339,8 @@ async def route_spin(body: SpinBody):
     if result["type"] in ("three", "jackpot"):
         gift = result["gift"]
         add_to_inventory(user_id, gift)
-        msg = f"🎁 Новый выигрыш!\n\nПодарок: *{gift['name']}*\nID: `{user_id}`\nЮзер: @{username}"
-        asyncio.create_task(asyncio.gather(*[tg_app.bot.send_message(oid, msg, parse_mode="Markdown") for oid in OWNER_IDS]))
+        msg = f"🎁 Новый выигрыш!\n\nПодарок: {gift['name']}\nID: {user_id}\nЮзер: @{username}"
+        asyncio.create_task(asyncio.gather(*[tg_app.bot.send_message(oid, msg) for oid in OWNER_IDS]))
     elif result["type"] == "two":
         add_balance(user_id, WIN_2_STARS)
         result["balance"] = get_balance(user_id)
@@ -379,8 +375,8 @@ async def route_withdraw(body: WithdrawBody):
     item = remove_from_inventory(body.item_id, user_id)
     if not item:
         raise HTTPException(404, "Предмет не найден")
-    msg = f"📤 Запрос на вывод подарка!\n\nПодарок: *{item['gift_name']}*\nID: `{user_id}`\nЮзер: @{username}"
-    asyncio.create_task(asyncio.gather(*[tg_app.bot.send_message(oid, msg, parse_mode="Markdown") for oid in OWNER_IDS]))
+    msg = f"📤 Запрос на вывод подарка!\n\nПодарок: {item['gift_name']}\nID: {user_id}\nЮзер: @{username}"
+    asyncio.create_task(asyncio.gather(*[tg_app.bot.send_message(oid, msg) for oid in OWNER_IDS]))
     return {"ok": True}
 
 if __name__ == "__main__":
