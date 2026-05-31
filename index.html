@@ -164,13 +164,8 @@ body {
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
-}
-.sym-cell img {
-  width: 64px;
-  height: 64px;
-  object-fit: contain;
-  user-select: none;
-  -webkit-user-drag: none;
+  font-size: 64px;
+  font-weight: bold;
 }
 
 @keyframes reelWin {
@@ -246,8 +241,6 @@ body {
 }
 .stat-l { font-size: 10px; letter-spacing: 1.5px; text-transform: uppercase; color: var(--muted); margin-bottom: 3px; }
 .stat-v { font-size: 17px; font-weight: 800; }
-.stat-v.g { color: var(--green); }
-.stat-v.r { color: var(--red); }
 
 .paytable-btn {
   background: none;
@@ -283,8 +276,7 @@ body {
   font-size: 13px;
 }
 .pt-row:last-child { border-bottom: none; }
-.pt-imgs { display: flex; gap: 2px; }
-.pt-imgs img { width: 28px; height: 28px; object-fit: contain; }
+.pt-imgs { display: flex; gap: 2px; font-size: 28px; }
 .pt-reward { font-weight: 700; color: var(--gold); font-size: 13px; }
 .pt-chance { font-size: 11px; color: var(--muted); }
 
@@ -313,10 +305,10 @@ body {
   align-items: center;
   gap: 8px;
 }
-.inv-card img {
-  width: 72px;
-  height: 72px;
-  object-fit: contain;
+.inv-letter {
+  font-size: 52px;
+  font-weight: 800;
+  color: var(--gold);
 }
 .inv-name {
   font-size: 13px;
@@ -390,23 +382,37 @@ body {
     <button class="paytable-btn" onclick="togglePt(this)">▸ Таблица выплат</button>
     <div class="paytable-box" id="ptBox">
       <div class="pt-row">
-        <div class="pt-imgs">
-          <img src="cigar.png"><img src="cigar.png"><img src="cigar.png">
-        </div>
-        <span class="pt-reward">Сигара</span>
-        <span class="pt-chance">0.8%</span>
+        <div class="pt-imgs">7 7 7</div>
+        <span class="pt-reward">Сигара (С)</span>
+        <span class="pt-chance">0.5%</span>
       </div>
       <div class="pt-row">
-        <div class="pt-imgs">
-          <img src="torch.png"><img src="torch.png"><img src="torch.png">
-        </div>
-        <span class="pt-reward">Подарок</span>
+        <div class="pt-imgs">🍌 🍌 🍌</div>
+        <span class="pt-reward">Факел (Ф)</span>
+        <span class="pt-chance">1%</span>
+      </div>
+      <div class="pt-row">
+        <div class="pt-imgs">🍋 🍋 🍋</div>
+        <span class="pt-reward">Рамен (Р)</span>
+        <span class="pt-chance">1.5%</span>
+      </div>
+      <div class="pt-row">
+        <div class="pt-imgs">🍏 🍏 🍏</div>
+        <span class="pt-reward">Змея (З)</span>
+        <span class="pt-chance">2%</span>
+      </div>
+      <div class="pt-row">
+        <div class="pt-imgs">🍒 🍒 🍒</div>
+        <span class="pt-reward">Мороженое (М)</span>
         <span class="pt-chance">2.5%</span>
       </div>
       <div class="pt-row">
-        <div class="pt-imgs">
-          <img src="ramen.png"><img src="ramen.png"><span style="font-size:22px;opacity:.3">✕</span>
-        </div>
+        <div class="pt-imgs">🍇 🍇 🍇</div>
+        <span class="pt-reward">Happy B-day (Д)</span>
+        <span class="pt-chance">3%</span>
+      </div>
+      <div class="pt-row">
+        <div class="pt-imgs">🍌 🍌 🍋</div>
         <span class="pt-reward">+5 ⭐</span>
         <span class="pt-chance">40%</span>
       </div>
@@ -416,7 +422,6 @@ body {
   <div class="stats">
     <div class="stat"><div class="stat-l">Спинов</div><div class="stat-v" id="sSpins">0</div></div>
     <div class="stat"><div class="stat-l">Выиграно</div><div class="stat-v g" id="sWon">0</div></div>
-    <div class="stat"><div class="stat-l">П/Л</div><div class="stat-v" id="sPL">0</div></div>
   </div>
 </div>
 
@@ -436,26 +441,38 @@ tg?.setBackgroundColor?.('#0d0d14');
 const initData = tg?.initData || "";
 const API = window.location.origin;
 
-const GIFT_IMGS = {
-  torch:    "/torch.png",
-  ramen:    "/ramen.png",
-  snake:    "/snake.png",
-  icecream: "/icecream.png",
-  happybday:"/happybday.png",
-  cigar:    "/cigar.png",
+const SYM_TO_GIFT = {
+  seven:   { name: "Сигара", letter: "С" },
+  banana:  { name: "Факел", letter: "Ф" },
+  lemon:   { name: "Рамен", letter: "Р" },
+  apple:   { name: "Змея", letter: "З" },
+  cherry:  { name: "Мороженое", letter: "М" },
+  grape:   { name: "Happy B-day", letter: "Д" }
 };
 
-const ALL_SYMS = ["torch","ramen","snake","icecream","happybday","cigar"];
+function getEmoji(sym) {
+  const map = {
+    seven: "7",
+    banana: "🍌",
+    lemon: "🍋",
+    apple: "🍏",
+    cherry: "🍒",
+    grape: "🍇"
+  };
+  return map[sym] || "?";
+}
+
+const ALL_SYMS = ["banana", "lemon", "apple", "cherry", "grape", "seven"];
 
 let spinning = false;
-let stats = {spins:0, won:0, pl:0};
+let stats = {spins: 0, won: 0};
 
 function switchTab(tab) {
-  document.querySelectorAll('.tab').forEach((t,i) => {
-    t.classList.toggle('active', (i===0 && tab==='slots') || (i===1 && tab==='inv'));
+  document.querySelectorAll('.tab').forEach((t, i) => {
+    t.classList.toggle('active', (i === 0 && tab === 'slots') || (i === 1 && tab === 'inv'));
   });
   document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
-  document.getElementById('page-' + (tab==='slots'?'slots':'inv')).classList.add('active');
+  document.getElementById('page-' + (tab === 'slots' ? 'slots' : 'inv')).classList.add('active');
   if (tab === 'inv') loadInventory();
 }
 
@@ -477,10 +494,7 @@ function buildReel(id, finalSyms) {
   strip.forEach(sym => {
     const cell = document.createElement('div');
     cell.className = 'sym-cell';
-    const img = document.createElement('img');
-    img.src = GIFT_IMGS[sym];
-    img.draggable = false;
-    cell.appendChild(img);
+    cell.textContent = getEmoji(sym);
     inner.appendChild(cell);
   });
   return total;
@@ -500,7 +514,7 @@ function animReel(id, total, delay, duration) {
 
 function initReels() {
   for (let i = 0; i < 3; i++) {
-    const syms = [0,1,2].map(() => ALL_SYMS[Math.floor(Math.random()*ALL_SYMS.length)]);
+    const syms = [0, 1, 2].map(() => ALL_SYMS[Math.floor(Math.random() * ALL_SYMS.length)]);
     buildReel(`ri${i}`, syms);
   }
 }
@@ -520,12 +534,12 @@ async function spin() {
 
   const apiCall = fetch(`${API}/api/spin`, {
     method: 'POST',
-    headers: {'Content-Type':'application/json'},
-    body: JSON.stringify({init_data: initData})
-  }).then(r => r.json()).catch(e => ({error: e.message}));
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ init_data: initData })
+  }).then(r => r.json()).catch(e => ({ error: e.message }));
 
   for (let i = 0; i < 3; i++) {
-    const syms = [0,1,2].map(() => ALL_SYMS[Math.floor(Math.random()*ALL_SYMS.length)]);
+    const syms = [0, 1, 2].map(() => ALL_SYMS[Math.floor(Math.random() * ALL_SYMS.length)]);
     buildReel(`ri${i}`, syms);
   }
   await new Promise(r => requestAnimationFrame(r));
@@ -564,19 +578,18 @@ async function spin() {
   document.getElementById('balVal').textContent = result.balance;
 
   stats.spins++;
-  stats.pl -= 30;
 
   if (result.type === 'jackpot' || result.type === 'three') {
     outer.className = 'reels-outer win';
     msg.className = 'win-msg gold';
-    msg.textContent = `Выиграл подарок: ${result.gift.name}!`;
+    const giftName = result.gift.name;
+    msg.textContent = `Выиграл ${giftName}!`;
     stats.won++;
     tg?.HapticFeedback?.notificationOccurred('success');
-    showToast(`${result.gift.name} в инвентаре!`);
+    showToast(`${giftName} (${SYM_TO_GIFT[result.gift.id]?.letter || '?'}) в инвентаре!`);
   } else if (result.type === 'two') {
     msg.className = 'win-msg green';
     msg.textContent = `+5 ⭐ — два одинаковых!`;
-    stats.pl += 5;
     tg?.HapticFeedback?.impactOccurred('medium');
   } else {
     msg.className = 'win-msg muted';
@@ -585,9 +598,6 @@ async function spin() {
 
   document.getElementById('sSpins').textContent = stats.spins;
   document.getElementById('sWon').textContent = stats.won;
-  const plEl = document.getElementById('sPL');
-  plEl.textContent = (stats.pl >= 0 ? '+' : '') + stats.pl;
-  plEl.className = 'stat-v ' + (stats.pl >= 0 ? 'g' : 'r');
 
   spinning = false;
   btn.disabled = false;
@@ -611,11 +621,21 @@ async function loadInventory() {
     grid.className = 'inv-grid';
 
     items.forEach(item => {
+      const letterMap = {
+        'Сигара': 'С',
+        'Факел': 'Ф',
+        'Рамен': 'Р',
+        'Змея': 'З',
+        'Мороженое': 'М',
+        'Happy B-day': 'Д'
+      };
+      const letter = letterMap[item.gift_name] || '?';
+
       const card = document.createElement('div');
       card.className = 'inv-card';
       card.id = `inv-${item.id}`;
       card.innerHTML = `
-        <img src="/${item.gift_file}" alt="${item.gift_name}">
+        <div class="inv-letter">${letter}</div>
         <div class="inv-name">${item.gift_name}</div>
         <button class="withdraw-btn" onclick="withdraw(${item.id}, this)">📤 Вывести</button>
       `;
@@ -624,7 +644,7 @@ async function loadInventory() {
 
     cont.innerHTML = '';
     cont.appendChild(grid);
-  } catch(e) {
+  } catch (e) {
     cont.innerHTML = '<div class="inv-empty">Ошибка загрузки</div>';
   }
 }
@@ -636,8 +656,8 @@ async function withdraw(itemId, btn) {
   try {
     const res = await fetch(`${API}/api/withdraw`, {
       method: 'POST',
-      headers: {'Content-Type':'application/json'},
-      body: JSON.stringify({init_data: initData, item_id: itemId})
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ init_data: initData, item_id: itemId })
     });
     const data = await res.json();
 
@@ -650,7 +670,7 @@ async function withdraw(itemId, btn) {
       btn.disabled = false;
       btn.textContent = '📤 Вывести';
     }
-  } catch(e) {
+  } catch (e) {
     btn.disabled = false;
     btn.textContent = '📤 Вывести';
   }
@@ -674,11 +694,11 @@ async function loadBalance() {
     const r = await fetch(`${API}/api/balance?init_data=${encodeURIComponent(initData)}`);
     const d = await r.json();
     document.getElementById('balVal').textContent = d.balance ?? '—';
-  } catch {}
+  } catch { }
 }
 
 initReels();
 loadBalance();
 </script>
 </body>
-</html>
+  </html>
