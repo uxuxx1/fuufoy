@@ -6,14 +6,11 @@
 <title>Casino</title>
 <script src="https://telegram.org/js/telegram-web-app.js"></script>
 <style>
-/* Стили такие же как были, не меняю для краткости */
 :root {
   --bg: #0d0d14;
   --card: #15151f;
   --border: #252535;
   --gold: #f0b429;
-  --gold2: #e07b00;
-  --green: #3ddc84;
   --text: #f0eaff;
   --muted: #5a556e;
 }
@@ -21,23 +18,22 @@
 body {
   background: var(--bg);
   color: var(--text);
-  font-family: 'Nunito', sans-serif;
-  min-height: 100vh;
+  font-family: system-ui, sans-serif;
   display: flex;
   flex-direction: column;
   align-items: center;
   padding-bottom: 90px;
 }
 .topbar { width: 100%; display: flex; justify-content: space-between; padding: 14px 16px; }
-.logo { font-family: 'Bebas Neue', sans-serif; font-size: 26px; color: var(--gold); }
-.balance-pill { background: var(--card); border: 1px solid var(--border); border-radius: 99px; padding: 6px 14px; display: flex; gap: 5px; }
-.tabs { display: flex; gap: 4px; background: var(--card); border-radius: 12px; padding: 4px; margin: 0 16px; width: calc(100% - 32px); }
-.tab { flex: 1; padding: 8px; background: none; color: var(--muted); font-weight: 700; cursor: pointer; }
-.tab.active { background: var(--border); color: var(--text); }
+.logo { font-size: 26px; font-weight: bold; color: var(--gold); }
+.balance-pill { background: #15151f; border-radius: 99px; padding: 6px 14px; display: flex; gap: 5px; }
+.tabs { display: flex; gap: 4px; background: #15151f; border-radius: 12px; padding: 4px; margin: 0 16px; width: calc(100% - 32px); }
+.tab { flex: 1; padding: 8px; background: none; color: #5a556e; font-weight: 700; cursor: pointer; }
+.tab.active { background: #252535; color: white; }
 .page { width: 100%; display: none; flex-direction: column; align-items: center; }
 .page.active { display: flex; }
-.machine { width: calc(100% - 32px); max-width: 360px; background: var(--card); border-radius: 20px; padding: 16px; }
-.reels-outer { background: #080810; border-radius: 12px; padding: 4px; overflow: hidden; }
+.machine { width: calc(100% - 32px); max-width: 360px; background: #15151f; border-radius: 20px; padding: 16px; }
+.reels-outer { background: #080810; border-radius: 12px; padding: 4px; }
 .reels { display: flex; gap: 4px; }
 .reel { flex: 1; height: 276px; overflow: hidden; }
 .reel-inner { display: flex; flex-direction: column; }
@@ -45,15 +41,15 @@ body {
 .spin-btn { width: 100%; height: 52px; background: linear-gradient(135deg, #e07b00, #f0b429); border: none; border-radius: 12px; font-size: 22px; font-weight: bold; margin-top: 8px; cursor: pointer; }
 .win-msg { text-align: center; font-size: 14px; padding: 8px; }
 .stats { display: flex; gap: 8px; margin-top: 10px; }
-.stat { background: var(--card); border-radius: 12px; padding: 10px; flex: 1; text-align: center; }
-.paytable-btn { background: none; border: 1px solid var(--border); border-radius: 10px; color: var(--muted); padding: 7px; margin-top: 10px; cursor: pointer; width: 100%; }
+.stat { background: #15151f; border-radius: 12px; padding: 10px; flex: 1; text-align: center; }
+.paytable-btn { background: none; border: 1px solid #252535; border-radius: 10px; color: #5a556e; padding: 7px; margin-top: 10px; cursor: pointer; width: 100%; }
 .paytable-box { display: none; background: #080810; border-radius: 10px; padding: 12px; margin-top: 6px; }
 .paytable-box.open { display: block; }
 .pt-row { display: flex; justify-content: space-between; padding: 6px 0; }
 .inv-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
-.inv-card { background: var(--card); border-radius: 14px; padding: 14px; text-align: center; }
+.inv-card { background: #15151f; border-radius: 14px; padding: 14px; text-align: center; }
 .inv-letter { font-size: 52px; font-weight: 800; color: var(--gold); }
-.withdraw-btn { background: #2a2a3e; border: none; border-radius: 8px; color: white; padding: 7px; margin-top: 8px; cursor: pointer; width: 100%; }
+.withdraw-btn { background: #2a2a3e; border: none; border-radius: 8px; color: white; padding: 7px; cursor: pointer; width: 100%; }
 .toast { position: fixed; bottom: 100px; left: 50%; transform: translateX(-50%); background: #1e1e2e; border-radius: 10px; padding: 10px 20px; opacity: 0; transition: all .3s; pointer-events: none; }
 .toast.show { opacity: 1; }
 </style>
@@ -72,25 +68,25 @@ body {
 
 <div class="page active" id="page-slots">
   <div class="machine">
-    <div class="reels-outer" id="reelsOuter">
+    <div class="reels-outer">
       <div class="reels">
         <div class="reel"><div class="reel-inner" id="ri0"></div></div>
         <div class="reel"><div class="reel-inner" id="ri1"></div></div>
         <div class="reel"><div class="reel-inner" id="ri2"></div></div>
       </div>
     </div>
-    <div class="win-msg muted" id="winMsg">Нажми крутить!</div>
+    <div class="win-msg" id="winMsg">Нажми крутить!</div>
     <button class="spin-btn" id="spinBtn" onclick="spin()">КРУТИТЬ</button>
     <div class="cost-label">30 ⭐ за спин</div>
     <button class="paytable-btn" onclick="togglePt(this)">Таблица выплат</button>
     <div class="paytable-box" id="ptBox">
-      <div class="pt-row"><span>777</span><span>Сигара</span><span>0.1%</span></div>
-      <div class="pt-row"><span>🍌🍌🍌</span><span>Факел</span><span>0.5%</span></div>
-      <div class="pt-row"><span>🍋🍋🍋</span><span>Рамен</span><span>0.5%</span></div>
-      <div class="pt-row"><span>🍏🍏🍏</span><span>Змея</span><span>0.5%</span></div>
-      <div class="pt-row"><span>🍒🍒🍒</span><span>Мороженое</span><span>0.5%</span></div>
-      <div class="pt-row"><span>🍇🍇🍇</span><span>Happy B-day</span><span>0.5%</span></div>
-      <div class="pt-row"><span>🍌🍌🍋 и тд</span><span>+5⭐</span><span>10%</span></div>
+      <div class="pt-row"><span>777</span><span>Сигара</span></div>
+      <div class="pt-row"><span>🍌🍌🍌</span><span>Факел</span></div>
+      <div class="pt-row"><span>🍋🍋🍋</span><span>Рамен</span></div>
+      <div class="pt-row"><span>🍏🍏🍏</span><span>Змея</span></div>
+      <div class="pt-row"><span>🍒🍒🍒</span><span>Мороженое</span></div>
+      <div class="pt-row"><span>🍇🍇🍇</span><span>Happy B-day</span></div>
+      <div class="pt-row"><span>🍌🍌🍋</span><span>+5⭐</span></div>
     </div>
   </div>
   <div class="stats">
@@ -110,7 +106,7 @@ tg?.expand();
 const initData = tg?.initData || "";
 const API = window.location.origin;
 
-// ГЛАВНОЕ: функция преобразования символа в эмодзи
+// ФУНКЦИЯ ПРЕОБРАЗОВАНИЯ СИМВОЛА В ЭМОДЗИ
 function getEmoji(sym) {
   const map = {
     "seven": "7",
@@ -126,20 +122,21 @@ function getEmoji(sym) {
 const ALL_SYMS = ["banana", "lemon", "apple", "cherry", "grape", "seven"];
 let spinning = false;
 let stats = { spins: 0, won: 0 };
+let currentReels = [[], [], []];
 
 function switchTab(tab) {
   document.querySelectorAll('.tab').forEach((t, i) => {
     t.classList.toggle('active', (i === 0 && tab === 'slots') || (i === 1 && tab === 'inv'));
   });
-  document.getElementById('page-' + (tab === 'slots' ? 'slots' : 'inv')).classList.toggle('active', true);
-  document.getElementById('page-' + (tab === 'slots' ? 'inv' : 'slots')).classList.toggle('active', false);
+  document.getElementById('page-slots').classList.toggle('active', tab === 'slots');
+  document.getElementById('page-inv').classList.toggle('active', tab === 'inv');
   if (tab === 'inv') loadInventory();
 }
 
 const EXTRA = 12;
 const CELL_H = 92;
 
-function buildReel(id, finalSyms) {
+function buildReel(id, symbols) {
   const inner = document.getElementById(id);
   inner.innerHTML = '';
   inner.style.transition = 'none';
@@ -150,7 +147,7 @@ function buildReel(id, finalSyms) {
   for (let i = 0; i < total - 3; i++) {
     strip.push(ALL_SYMS[Math.floor(Math.random() * ALL_SYMS.length)]);
   }
-  strip.push(...finalSyms);
+  strip.push(...symbols);
   
   strip.forEach(sym => {
     const cell = document.createElement('div');
@@ -175,8 +172,7 @@ function animReel(id, total, delay, duration) {
 
 function initReels() {
   for (let i = 0; i < 3; i++) {
-    const syms = [ALL_SYMS[0], ALL_SYMS[1], ALL_SYMS[2]];
-    buildReel(`ri${i}`, syms);
+    buildReel(`ri${i}`, ["banana", "lemon", "apple"]);
   }
 }
 
@@ -186,34 +182,17 @@ async function spin() {
   
   const btn = document.getElementById('spinBtn');
   const msg = document.getElementById('winMsg');
-  const outer = document.getElementById('reelsOuter');
   
   btn.disabled = true;
   msg.textContent = '';
-  outer.classList.remove('win');
   
-  const apiCall = fetch(`${API}/api/spin`, {
+  // Запрос к серверу
+  const response = await fetch(`${API}/api/spin`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ init_data: initData })
-  }).then(r => r.json()).catch(e => ({ error: e.message }));
-  
-  // Быстрая прокрутка
-  for (let i = 0; i < 3; i++) {
-    const syms = [ALL_SYMS[Math.floor(Math.random() * ALL_SYMS.length)], 
-                  ALL_SYMS[Math.floor(Math.random() * ALL_SYMS.length)], 
-                  ALL_SYMS[Math.floor(Math.random() * ALL_SYMS.length)]];
-    buildReel(`ri${i}`, syms);
-  }
-  await new Promise(r => requestAnimationFrame(r));
-  
-  const fakeP = [];
-  for (let i = 0; i < 3; i++) {
-    const total = document.getElementById(`ri${i}`).children.length;
-    fakeP.push(animReel(`ri${i}`, total, i * 80, 0.55));
-  }
-  
-  const [result] = await Promise.all([apiCall, Promise.all(fakeP)]);
+  });
+  const result = await response.json();
   
   if (result.error) {
     msg.textContent = result.error;
@@ -222,34 +201,28 @@ async function spin() {
     return;
   }
   
-  // Финальная остановка на реальных символах
-  for (let i = 0; i < 3; i++) {
-    buildReel(`ri${i}`, result.symbols);
-  }
-  await new Promise(r => requestAnimationFrame(r));
+  console.log("Сервер прислал:", result.symbols); // Для отладки
   
-  const finalP = [];
+  // ОБНОВЛЯЕМ ВИЗУАЛ НА ТО, ЧТО ПРИСЛАЛ СЕРВЕР
   for (let i = 0; i < 3; i++) {
-    const total = document.getElementById(`ri${i}`).children.length;
-    finalP.push(animReel(`ri${i}`, total, i * 100, 0.45));
+    const total = buildReel(`ri${i}`, result.symbols);
+    await animReel(`ri${i}`, total, i * 100, 0.5);
   }
-  await Promise.all(finalP);
   
+  // Обновляем баланс и статистику
   document.getElementById('balVal').textContent = result.balance;
   stats.spins++;
   
   if (result.type === 'jackpot' || result.type === 'three') {
-    outer.classList.add('win');
-    msg.className = 'win-msg gold';
-    msg.textContent = `Выиграл ${result.gift.name}!`;
+    msg.style.color = '#f0b429';
+    msg.textContent = `🎁 Выиграл ${result.gift.name}!`;
     stats.won++;
     showToast(`${result.gift.name} в инвентаре!`);
   } else if (result.type === 'two') {
-    msg.className = 'win-msg green';
-    msg.textContent = '+5 ⭐';
-    stats.won++;
+    msg.style.color = '#3ddc84';
+    msg.textContent = `+5 ⭐`;
   } else {
-    msg.className = 'win-msg muted';
+    msg.style.color = '#5a556e';
     msg.textContent = '—';
   }
   
@@ -335,4 +308,4 @@ initReels();
 loadBalance();
 </script>
 </body>
-  </html>
+</html>
