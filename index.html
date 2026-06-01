@@ -35,8 +35,8 @@ body {
 .machine { width: calc(100% - 32px); max-width: 360px; background: #15151f; border-radius: 20px; padding: 16px; }
 .reels-outer { background: #080810; border-radius: 12px; padding: 4px; }
 .reels { display: flex; gap: 4px; }
-.reel { flex: 1; height: 276px; overflow: hidden; }
-.reel-inner { display: flex; flex-direction: column; }
+.reel { flex: 1; height: 276px; overflow: hidden; position: relative; }
+.reel-inner { display: flex; flex-direction: column; transition: transform 0.5s cubic-bezier(0.22, 0.68, 0, 1.2); }
 .sym-cell { height: 92px; display: flex; align-items: center; justify-content: center; font-size: 64px; }
 .spin-btn { width: 100%; height: 52px; background: linear-gradient(135deg, #e07b00, #f0b429); border: none; border-radius: 12px; font-size: 22px; font-weight: bold; margin-top: 8px; cursor: pointer; }
 .spin-btn:disabled { opacity: 0.5; cursor: not-allowed; }
@@ -81,13 +81,13 @@ body {
     <div class="cost-label">30 ⭐ за спин</div>
     <button class="paytable-btn" onclick="togglePt(this)">Таблица выплат</button>
     <div class="paytable-box" id="ptBox">
-      <div class="pt-row"><span>777</span><span>Сигара (С)</span></div>
-      <div class="pt-row"><span>🍌🍌🍌</span><span>Факел (Ф)</span></div>
-      <div class="pt-row"><span>🍋🍋🍋</span><span>Рамен (Р)</span></div>
-      <div class="pt-row"><span>🍏🍏🍏</span><span>Змея (З)</span></div>
-      <div class="pt-row"><span>🍒🍒🍒</span><span>Мороженое (М)</span></div>
-      <div class="pt-row"><span>🍇🍇🍇</span><span>Happy B-day (Д)</span></div>
-      <div class="pt-row"><span>🍌🍌🍋</span><span>+5 ⭐</span></div>
+      <div class="pt-row"><span>777</span><span>Сигара</span></div>
+      <div class="pt-row"><span>🍌🍌🍌</span><span>Факел</span></div>
+      <div class="pt-row"><span>🍋🍋🍋</span><span>Рамен</span></div>
+      <div class="pt-row"><span>🍏🍏🍏</span><span>Змея</span></div>
+      <div class="pt-row"><span>🍒🍒🍒</span><span>Мороженое</span></div>
+      <div class="pt-row"><span>🍇🍇🍇</span><span>Happy B-day</span></div>
+      <div class="pt-row"><span>Любые два</span><span>+5⭐</span></div>
     </div>
   </div>
   <div class="stats">
@@ -119,7 +119,6 @@ function getEmoji(sym) {
   return map[sym] || "?";
 }
 
-const ALL_SYMS = ["banana", "lemon", "apple", "cherry", "grape", "seven"];
 let spinning = false;
 let stats = { spins: 0, won: 0 };
 
@@ -130,41 +129,6 @@ function switchTab(tab) {
   document.getElementById('page-slots').classList.toggle('active', tab === 'slots');
   document.getElementById('page-inv').classList.toggle('active', tab === 'inv');
   if (tab === 'inv') loadInventory();
-}
-
-function buildReel(reelId, symbols, withAnimation = false) {
-  const inner = document.getElementById(reelId);
-  inner.innerHTML = '';
-  inner.style.transition = 'none';
-  inner.style.transform = 'translateY(0)';
-  
-  const total = 30;
-  const strip = [];
-  for (let i = 0; i < total - 3; i++) {
-    strip.push(ALL_SYMS[Math.floor(Math.random() * ALL_SYMS.length)]);
-  }
-  strip.push(...symbols);
-  
-  strip.forEach(sym => {
-    const cell = document.createElement('div');
-    cell.className = 'sym-cell';
-    cell.textContent = getEmoji(sym);
-    inner.appendChild(cell);
-  });
-  return total;
-}
-
-function animateReel(reelId, delay, duration) {
-  return new Promise(resolve => {
-    setTimeout(() => {
-      const inner = document.getElementById(reelId);
-      const totalCells = inner.children.length;
-      const targetY = -((totalCells - 3) * 92);
-      inner.style.transition = `transform ${duration}s cubic-bezier(0.22, 0.68, 0, 1.2)`;
-      inner.style.transform = `translateY(${targetY}px)`;
-      inner.addEventListener('transitionend', () => resolve(), { once: true });
-    }, delay);
-  });
 }
 
 async function spin() {
@@ -192,22 +156,42 @@ async function spin() {
       return;
     }
     
-    console.log("Результат:", result.type, result.symbols);
+    console.log("Сервер прислал:", result.symbols);
     
-    // Перестраиваем барабаны с новыми символами и анимируем
+    // Показываем то, что пришло с сервера
     for (let i = 0; i < 3; i++) {
-      buildReel(`ri${i}`, result.symbols);
+      const inner = document.getElementById(`ri${i}`);
+      inner.innerHTML = '';
+      
+      // Создаем 3 ячейки с эмодзи из сервера
+      for (let j = 0; j < 3; j++) {
+        const cell = document.createElement('div');
+        cell.className = 'sym-cell';
+        cell.textContent = getEmoji(result.symbols[j]);
+        inner.appendChild(cell);
+      }
+      
+      // Добавляем дубликаты для анимации
+      for (let j = 0; j < 10; j++) {
+        const cell = document.createElement('div');
+        cell.className = 'sym-cell';
+        cell.textContent = getEmoji(result.symbols[j % 3]);
+        inner.appendChild(cell);
+      }
+      
+      // Анимируем
+      inner.style.transition = 'none';
+      inner.style.transform = 'translateY(0)';
+      setTimeout(() => {
+        const totalH = inner.children.length * 92;
+        const target = totalH - (3 * 92);
+        inner.style.transition = 'transform 0.5s cubic-bezier(0.22, 0.68, 0, 1.2)';
+        inner.style.transform = `translateY(-${target}px)`;
+      }, i * 100);
     }
     
-    // Небольшая задержка перед анимацией
-    await new Promise(r => setTimeout(r, 50));
+    await new Promise(r => setTimeout(r, 800));
     
-    // Анимируем все барабаны
-    for (let i = 0; i < 3; i++) {
-      await animateReel(`ri${i}`, i * 120, 0.5 + i * 0.1);
-    }
-    
-    // Обновляем баланс
     document.getElementById('balVal').textContent = result.balance;
     stats.spins++;
     
@@ -307,14 +291,18 @@ async function loadBalance() {
   } catch {}
 }
 
-// Инициализация
-function initReels() {
-  for (let i = 0; i < 3; i++) {
-    buildReel(`ri${i}`, ["banana", "lemon", "apple"]);
+// Стартовая инициализация
+for (let i = 0; i < 3; i++) {
+  const inner = document.getElementById(`ri${i}`);
+  inner.innerHTML = '';
+  for (let j = 0; j < 3; j++) {
+    const cell = document.createElement('div');
+    cell.className = 'sym-cell';
+    cell.textContent = '🍋';
+    inner.appendChild(cell);
   }
 }
 
-initReels();
 loadBalance();
 </script>
 </body>
