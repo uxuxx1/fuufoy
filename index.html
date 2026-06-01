@@ -35,12 +35,12 @@ body {
 .machine { width: calc(100% - 32px); max-width: 360px; background: #15151f; border-radius: 20px; padding: 16px; }
 .reels-outer { background: #080810; border-radius: 12px; padding: 4px; }
 .reels { display: flex; gap: 4px; }
-.reel { flex: 1; height: 276px; overflow: hidden; position: relative; }
-.reel-inner { display: flex; flex-direction: column; transition: transform 0.5s cubic-bezier(0.22, 0.68, 0, 1.2); }
+.reel { flex: 1; height: 276px; overflow: hidden; position: relative; background: #00000020; border-radius: 8px; }
+.reel-inner { display: flex; flex-direction: column; transition: transform 0.4s cubic-bezier(0.25, 0.1, 0.15, 1); }
 .sym-cell { height: 92px; display: flex; align-items: center; justify-content: center; font-size: 64px; }
 .spin-btn { width: 100%; height: 52px; background: linear-gradient(135deg, #e07b00, #f0b429); border: none; border-radius: 12px; font-size: 22px; font-weight: bold; margin-top: 8px; cursor: pointer; }
 .spin-btn:disabled { opacity: 0.5; cursor: not-allowed; }
-.win-msg { text-align: center; font-size: 14px; padding: 8px; }
+.win-msg { text-align: center; font-size: 14px; padding: 8px; min-height: 50px; }
 .stats { display: flex; gap: 8px; margin-top: 10px; }
 .stat { background: #15151f; border-radius: 12px; padding: 10px; flex: 1; text-align: center; }
 .paytable-btn { background: none; border: 1px solid #252535; border-radius: 10px; color: #5a556e; padding: 7px; margin-top: 10px; cursor: pointer; width: 100%; }
@@ -51,7 +51,7 @@ body {
 .inv-card { background: #15151f; border-radius: 14px; padding: 14px; text-align: center; }
 .inv-letter { font-size: 52px; font-weight: 800; color: var(--gold); }
 .withdraw-btn { background: #2a2a3e; border: none; border-radius: 8px; color: white; padding: 7px; cursor: pointer; width: 100%; }
-.toast { position: fixed; bottom: 100px; left: 50%; transform: translateX(-50%); background: #1e1e2e; border-radius: 10px; padding: 10px 20px; opacity: 0; transition: all .3s; pointer-events: none; }
+.toast { position: fixed; bottom: 100px; left: 50%; transform: translateX(-50%); background: #1e1e2e; border-radius: 10px; padding: 10px 20px; opacity: 0; transition: all .3s; pointer-events: none; z-index: 100; }
 .toast.show { opacity: 1; }
 </style>
 </head>
@@ -76,23 +76,24 @@ body {
         <div class="reel"><div class="reel-inner" id="ri2"></div></div>
       </div>
     </div>
-    <div class="win-msg" id="winMsg">Нажми крутить!</div>
+    <div class="win-msg" id="winMsg">⚡ Нажми КРУТИТЬ ⚡</div>
     <button class="spin-btn" id="spinBtn" onclick="spin()">КРУТИТЬ</button>
     <div class="cost-label">30 ⭐ за спин</div>
-    <button class="paytable-btn" onclick="togglePt(this)">Таблица выплат</button>
+    <button class="paytable-btn" onclick="togglePt(this)">📊 Таблица выплат</button>
     <div class="paytable-box" id="ptBox">
-      <div class="pt-row"><span>777</span><span>Сигара</span></div>
-      <div class="pt-row"><span>🍌🍌🍌</span><span>Факел</span></div>
-      <div class="pt-row"><span>🍋🍋🍋</span><span>Рамен</span></div>
-      <div class="pt-row"><span>🍏🍏🍏</span><span>Змея</span></div>
-      <div class="pt-row"><span>🍒🍒🍒</span><span>Мороженое</span></div>
-      <div class="pt-row"><span>🍇🍇🍇</span><span>Happy B-day</span></div>
-      <div class="pt-row"><span>Любые два</span><span>+5⭐</span></div>
+      <div class="pt-row"><span>777</span><span>🎁 Сигара</span><span>⭐ 1000</span></div>
+      <div class="pt-row"><span>🍌🍌🍌</span><span>🎁 Факел</span><span>⭐ 0</span></div>
+      <div class="pt-row"><span>🍋🍋🍋</span><span>🎁 Рамен</span><span>⭐ 0</span></div>
+      <div class="pt-row"><span>🍏🍏🍏</span><span>🎁 Змея</span><span>⭐ 0</span></div>
+      <div class="pt-row"><span>🍒🍒🍒</span><span>🎁 Мороженое</span><span>⭐ 0</span></div>
+      <div class="pt-row"><span>🍇🍇🍇</span><span>🎁 Happy B-day</span><span>⭐ 0</span></div>
+      <div class="pt-row"><span>🍌🍌🍋</span><span>✨ Два одинаковых</span><span>+5 ⭐</span></div>
+      <div class="pt-row"><span>🍋🍏🍒</span><span>❌ Мимо</span><span>0 ⭐</span></div>
     </div>
   </div>
   <div class="stats">
-    <div class="stat"><div>Спинов</div><div id="sSpins">0</div></div>
-    <div class="stat"><div>Выиграно</div><div id="sWon">0</div></div>
+    <div class="stat"><div>🎰 СПИНОВ</div><div id="sSpins">0</div></div>
+    <div class="stat"><div>🏆 ВЫИГРАНО</div><div id="sWon">0</div></div>
   </div>
 </div>
 
@@ -116,7 +117,7 @@ function getEmoji(sym) {
     "cherry": "🍒",
     "grape": "🍇"
   };
-  return map[sym] || "?";
+  return map[sym] || "❓";
 }
 
 let spinning = false;
@@ -136,10 +137,11 @@ async function spin() {
   spinning = true;
   
   const btn = document.getElementById('spinBtn');
-  const msg = document.getElementById('winMsg');
+  const msgDiv = document.getElementById('winMsg');
   
   btn.disabled = true;
-  msg.textContent = '';
+  msgDiv.innerHTML = '🌀 КРУЧУ... 🌀';
+  msgDiv.style.color = '#5a556e';
   
   try {
     const response = await fetch(`${API}/api/spin`, {
@@ -150,62 +152,74 @@ async function spin() {
     const result = await response.json();
     
     if (result.error) {
-      msg.textContent = result.error;
+      msgDiv.innerHTML = '❌ ' + result.error;
       spinning = false;
       btn.disabled = false;
       return;
     }
     
-    console.log("Сервер прислал:", result.symbols);
+    console.log("🎰 РЕЗУЛЬТАТ:", result.type, result.symbols);
     
-    // Показываем то, что пришло с сервера
+    // === 1. ПОКАЗЫВАЕМ КОМБИНАЦИЮ ===
     for (let i = 0; i < 3; i++) {
-      const inner = document.getElementById(`ri${i}`);
-      inner.innerHTML = '';
+      const reelInner = document.getElementById(`ri${i}`);
+      reelInner.innerHTML = '';
       
-      // Создаем 3 ячейки с эмодзи из сервера
+      // Создаем 3 видимых слота с эмодзи из сервера
       for (let j = 0; j < 3; j++) {
         const cell = document.createElement('div');
         cell.className = 'sym-cell';
         cell.textContent = getEmoji(result.symbols[j]);
-        inner.appendChild(cell);
+        reelInner.appendChild(cell);
       }
       
-      // Добавляем дубликаты для анимации
-      for (let j = 0; j < 10; j++) {
+      // Добавляем еще 6 для анимации (чтоб было больше 3)
+      for (let j = 0; j < 6; j++) {
         const cell = document.createElement('div');
         cell.className = 'sym-cell';
         cell.textContent = getEmoji(result.symbols[j % 3]);
-        inner.appendChild(cell);
+        reelInner.appendChild(cell);
       }
       
-      // Анимируем
-      inner.style.transition = 'none';
-      inner.style.transform = 'translateY(0)';
+      // Анимация прокрутки
+      reelInner.style.transition = 'none';
+      reelInner.style.transform = 'translateY(0px)';
+      
       setTimeout(() => {
-        const totalH = inner.children.length * 92;
-        const target = totalH - (3 * 92);
-        inner.style.transition = 'transform 0.5s cubic-bezier(0.22, 0.68, 0, 1.2)';
-        inner.style.transform = `translateY(-${target}px)`;
-      }, i * 100);
+        const totalHeight = reelInner.children.length * 92;
+        const targetY = totalHeight - (3 * 92);
+        reelInner.style.transition = 'transform 0.35s cubic-bezier(0.2, 0.9, 0.4, 1.1)';
+        reelInner.style.transform = `translateY(-${targetY}px)`;
+      }, i * 80);
     }
     
-    await new Promise(r => setTimeout(r, 800));
+    // Ждем окончания анимации
+    await new Promise(r => setTimeout(r, 600));
     
+    // === 2. ОБНОВЛЯЕМ БАЛАНС И СТАТИСТИКУ ===
     document.getElementById('balVal').textContent = result.balance;
     stats.spins++;
     
-    if (result.type === 'jackpot' || result.type === 'three') {
-      msg.style.color = '#f0b429';
-      msg.textContent = `🎁 Выиграл ${result.gift.name}!`;
+    // === 3. ПОКАЗЫВАЕМ РЕЗУЛЬТАТ ===
+    if (result.type === 'jackpot') {
+      msgDiv.innerHTML = '🎉🎉🎉 ДЖЕКПОТ! СИГАРА! +1000 ⭐ 🎉🎉🎉';
+      msgDiv.style.color = '#f0b429';
       stats.won++;
-      showToast(`${result.gift.name} в инвентаре!`);
-    } else if (result.type === 'two') {
-      msg.style.color = '#3ddc84';
-      msg.textContent = `+5 ⭐`;
-    } else {
-      msg.style.color = '#5a556e';
-      msg.textContent = '—';
+      showToast('🔥 ДЖЕКПОТ! Выиграл СИГАРУ! 🔥');
+    } 
+    else if (result.type === 'three') {
+      msgDiv.innerHTML = `🎁 ПОЗДРАВЛЯЮ! Вы выиграли ПОДАРОК: ${result.gift.name}! 🎁`;
+      msgDiv.style.color = '#f0b429';
+      stats.won++;
+      showToast(`🎁 ${result.gift.name} добавлен в инвентарь!`);
+    } 
+    else if (result.type === 'two') {
+      msgDiv.innerHTML = '✨ +5 ЗВЁЗД ✨ (два одинаковых символа)';
+      msgDiv.style.color = '#3ddc84';
+    } 
+    else {
+      msgDiv.innerHTML = '😔 МИМО... Попробуй ещё! 😔';
+      msgDiv.style.color = '#5a556e';
     }
     
     document.getElementById('sSpins').textContent = stats.spins;
@@ -213,7 +227,7 @@ async function spin() {
     
   } catch (err) {
     console.error(err);
-    msg.textContent = 'Ошибка';
+    msgDiv.innerHTML = '❌ Ошибка соединения';
   }
   
   spinning = false;
@@ -222,36 +236,38 @@ async function spin() {
 
 async function loadInventory() {
   const cont = document.getElementById('invContent');
-  cont.innerHTML = 'Загрузка...';
+  cont.innerHTML = '🔄 Загрузка...';
   try {
     const res = await fetch(`${API}/api/inventory?init_data=${encodeURIComponent(initData)}`);
     const data = await res.json();
     const items = data.items || [];
     if (!items.length) {
-      cont.innerHTML = 'Инвентарь пуст';
+      cont.innerHTML = '📭 Инвентарь пуст\nВыиграйте подарок в слотах!';
       return;
     }
     const grid = document.createElement('div');
     grid.className = 'inv-grid';
     const letters = { 'Сигара': 'С', 'Факел': 'Ф', 'Рамен': 'Р', 'Змея': 'З', 'Мороженое': 'М', 'Happy B-day': 'Д' };
+    const emojiMap = { 'Сигара': '🚬', 'Факел': '🔥', 'Рамен': '🍜', 'Змея': '🐍', 'Мороженое': '🍦', 'Happy B-day': '🎂' };
+    
     items.forEach(item => {
       const div = document.createElement('div');
       div.className = 'inv-card';
       div.innerHTML = `<div class="inv-letter">${letters[item.gift_name] || '?'}</div>
-                       <div>${item.gift_name}</div>
-                       <button class="withdraw-btn" onclick="withdraw(${item.id}, this)">Вывести</button>`;
+                       <div>${emojiMap[item.gift_name] || '🎁'} ${item.gift_name}</div>
+                       <button class="withdraw-btn" onclick="withdraw(${item.id}, this)">📤 ВЫВЕСТИ</button>`;
       grid.appendChild(div);
     });
     cont.innerHTML = '';
     cont.appendChild(grid);
   } catch(e) {
-    cont.innerHTML = 'Ошибка';
+    cont.innerHTML = '❌ Ошибка загрузки';
   }
 }
 
 async function withdraw(itemId, btn) {
   btn.disabled = true;
-  btn.textContent = '...';
+  btn.textContent = '⏳';
   try {
     const res = await fetch(`${API}/api/withdraw`, {
       method: 'POST',
@@ -261,14 +277,15 @@ async function withdraw(itemId, btn) {
     const data = await res.json();
     if (data.ok) {
       btn.closest('.inv-card')?.remove();
-      showToast('Запрос отправлен');
+      showToast('✅ Запрос отправлен администратору!');
+      setTimeout(() => loadInventory(), 1000);
     } else {
       btn.disabled = false;
-      btn.textContent = 'Вывести';
+      btn.textContent = '📤 ВЫВЕСТИ';
     }
   } catch(e) {
     btn.disabled = false;
-    btn.textContent = 'Вывести';
+    btn.textContent = '📤 ВЫВЕСТИ';
   }
 }
 
@@ -276,7 +293,7 @@ function showToast(text) {
   const t = document.getElementById('toast');
   t.textContent = text;
   t.classList.add('show');
-  setTimeout(() => t.classList.remove('show'), 2000);
+  setTimeout(() => t.classList.remove('show'), 2500);
 }
 
 function togglePt(btn) {
@@ -291,18 +308,28 @@ async function loadBalance() {
   } catch {}
 }
 
-// Стартовая инициализация
-for (let i = 0; i < 3; i++) {
-  const inner = document.getElementById(`ri${i}`);
-  inner.innerHTML = '';
-  for (let j = 0; j < 3; j++) {
-    const cell = document.createElement('div');
-    cell.className = 'sym-cell';
-    cell.textContent = '🍋';
-    inner.appendChild(cell);
+// Стартовая заглушка
+function initDemo() {
+  const demo = [["🍌","🍌","🍌"], ["🍋","🍋","🍋"], ["🍏","🍏","🍏"]];
+  for (let i = 0; i < 3; i++) {
+    const reel = document.getElementById(`ri${i}`);
+    reel.innerHTML = '';
+    for (let j = 0; j < 3; j++) {
+      const cell = document.createElement('div');
+      cell.className = 'sym-cell';
+      cell.textContent = demo[i][j];
+      reel.appendChild(cell);
+    }
+    for (let j = 0; j < 6; j++) {
+      const cell = document.createElement('div');
+      cell.className = 'sym-cell';
+      cell.textContent = demo[i][j % 3];
+      reel.appendChild(cell);
+    }
   }
 }
 
+initDemo();
 loadBalance();
 </script>
 </body>
