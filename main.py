@@ -144,36 +144,36 @@ def remove_from_inventory(item_id: int, user_id: int) -> dict | None:
     c.close()
     return dict(row)
 
-# ==================== ЛОГИКА СЛОТОВ ====================
+# ==================== ЛОГИКА СЛОТОВ (НОРМАЛЬНЫЕ ШАНСЫ) ====================
 def do_spin() -> dict:
-    all_symbols = ["banana", "lemon", "apple", "cherry", "grape", "seven"]
+    all_symbols = ["banana", "lemon", "apple", "cherry", "grape"]
     r = random.random() * 100
 
-    # 1% джекпот 777
-    if r < 1:
+    # 0.5% джекпот (сигара)
+    if r < 0.5:
         return {"type": "jackpot", "symbols": ["seven", "seven", "seven"], "gift": CIGAR}
 
-    # 4% три одинаковых (по 0.8%)
-    elif r < 1 + 0.8:
+    # 5% на три одинаковых (по 1% на каждый фрукт)
+    elif r < 0.5 + 1:
         return {"type": "three", "symbols": ["banana", "banana", "banana"], "gift": GIFTS[0]}
-    elif r < 1.8 + 0.8:
+    elif r < 1.5 + 1:
         return {"type": "three", "symbols": ["lemon", "lemon", "lemon"], "gift": GIFTS[1]}
-    elif r < 2.6 + 0.8:
+    elif r < 2.5 + 1:
         return {"type": "three", "symbols": ["apple", "apple", "apple"], "gift": GIFTS[2]}
-    elif r < 3.4 + 0.8:
+    elif r < 3.5 + 1:
         return {"type": "three", "symbols": ["cherry", "cherry", "cherry"], "gift": GIFTS[3]}
-    elif r < 4.2 + 0.8:
+    elif r < 4.5 + 1:
         return {"type": "three", "symbols": ["grape", "grape", "grape"], "gift": GIFTS[4]}
 
-    # 20% два одинаковых
-    elif r < 5 + 20:
+    # 20% на два одинаковых
+    elif r < 5.5 + 20:
         pair = random.choice(all_symbols)
         third = random.choice([s for s in all_symbols if s != pair])
         symbols = [pair, pair, third]
         random.shuffle(symbols)
         return {"type": "two", "symbols": symbols, "stars": WIN_2_STARS}
 
-    # 75% три разных
+    # Остальное (74.5%) — три разных символа
     else:
         symbols = random.sample(all_symbols, 3)
         return {"type": "nothing", "symbols": symbols}
