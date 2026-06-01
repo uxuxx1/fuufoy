@@ -39,6 +39,7 @@ body {
 .reel-inner { display: flex; flex-direction: column; }
 .sym-cell { height: 92px; display: flex; align-items: center; justify-content: center; font-size: 64px; }
 .spin-btn { width: 100%; height: 52px; background: linear-gradient(135deg, #e07b00, #f0b429); border: none; border-radius: 12px; font-size: 22px; font-weight: bold; margin-top: 8px; cursor: pointer; }
+.spin-btn:disabled { opacity: 0.5; cursor: not-allowed; }
 .win-msg { text-align: center; font-size: 14px; padding: 8px; }
 .stats { display: flex; gap: 8px; margin-top: 10px; }
 .stat { background: #15151f; border-radius: 12px; padding: 10px; flex: 1; text-align: center; }
@@ -80,13 +81,13 @@ body {
     <div class="cost-label">30 ⭐ за спин</div>
     <button class="paytable-btn" onclick="togglePt(this)">Таблица выплат</button>
     <div class="paytable-box" id="ptBox">
-      <div class="pt-row"><span>777</span><span>Сигара</span></div>
-      <div class="pt-row"><span>🍌🍌🍌</span><span>Факел</span></div>
-      <div class="pt-row"><span>🍋🍋🍋</span><span>Рамен</span></div>
-      <div class="pt-row"><span>🍏🍏🍏</span><span>Змея</span></div>
-      <div class="pt-row"><span>🍒🍒🍒</span><span>Мороженое</span></div>
-      <div class="pt-row"><span>🍇🍇🍇</span><span>Happy B-day</span></div>
-      <div class="pt-row"><span>🍌🍌🍋</span><span>+5⭐</span></div>
+      <div class="pt-row"><span>777</span><span>Сигара (С)</span></div>
+      <div class="pt-row"><span>🍌🍌🍌</span><span>Факел (Ф)</span></div>
+      <div class="pt-row"><span>🍋🍋🍋</span><span>Рамен (Р)</span></div>
+      <div class="pt-row"><span>🍏🍏🍏</span><span>Змея (З)</span></div>
+      <div class="pt-row"><span>🍒🍒🍒</span><span>Мороженое (М)</span></div>
+      <div class="pt-row"><span>🍇🍇🍇</span><span>Happy B-day (Д)</span></div>
+      <div class="pt-row"><span>🍌🍌🍋</span><span>+5 ⭐</span></div>
     </div>
   </div>
   <div class="stats">
@@ -106,7 +107,6 @@ tg?.expand();
 const initData = tg?.initData || "";
 const API = window.location.origin;
 
-// ФУНКЦИЯ ПРЕОБРАЗОВАНИЯ СИМВОЛА В ЭМОДЗИ
 function getEmoji(sym) {
   const map = {
     "seven": "7",
@@ -122,7 +122,6 @@ function getEmoji(sym) {
 const ALL_SYMS = ["banana", "lemon", "apple", "cherry", "grape", "seven"];
 let spinning = false;
 let stats = { spins: 0, won: 0 };
-let currentReels = [[], [], []];
 
 function switchTab(tab) {
   document.querySelectorAll('.tab').forEach((t, i) => {
@@ -133,16 +132,13 @@ function switchTab(tab) {
   if (tab === 'inv') loadInventory();
 }
 
-const EXTRA = 12;
-const CELL_H = 92;
-
-function buildReel(id, symbols) {
-  const inner = document.getElementById(id);
+function buildReel(reelId, symbols, withAnimation = false) {
+  const inner = document.getElementById(reelId);
   inner.innerHTML = '';
   inner.style.transition = 'none';
   inner.style.transform = 'translateY(0)';
   
-  const total = EXTRA * ALL_SYMS.length + 3;
+  const total = 30;
   const strip = [];
   for (let i = 0; i < total - 3; i++) {
     strip.push(ALL_SYMS[Math.floor(Math.random() * ALL_SYMS.length)]);
@@ -158,22 +154,17 @@ function buildReel(id, symbols) {
   return total;
 }
 
-function animReel(id, total, delay, duration) {
-  return new Promise(res => {
+function animateReel(reelId, delay, duration) {
+  return new Promise(resolve => {
     setTimeout(() => {
-      const inner = document.getElementById(id);
-      const targetY = -((total - 3) * CELL_H);
+      const inner = document.getElementById(reelId);
+      const totalCells = inner.children.length;
+      const targetY = -((totalCells - 3) * 92);
       inner.style.transition = `transform ${duration}s cubic-bezier(0.22, 0.68, 0, 1.2)`;
       inner.style.transform = `translateY(${targetY}px)`;
-      inner.addEventListener('transitionend', res, { once: true });
+      inner.addEventListener('transitionend', () => resolve(), { once: true });
     }, delay);
   });
-}
-
-function initReels() {
-  for (let i = 0; i < 3; i++) {
-    buildReel(`ri${i}`, ["banana", "lemon", "apple"]);
-  }
 }
 
 async function spin() {
@@ -186,48 +177,60 @@ async function spin() {
   btn.disabled = true;
   msg.textContent = '';
   
-  // Запрос к серверу
-  const response = await fetch(`${API}/api/spin`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ init_data: initData })
-  });
-  const result = await response.json();
-  
-  if (result.error) {
-    msg.textContent = result.error;
-    spinning = false;
-    btn.disabled = false;
-    return;
+  try {
+    const response = await fetch(`${API}/api/spin`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ init_data: initData })
+    });
+    const result = await response.json();
+    
+    if (result.error) {
+      msg.textContent = result.error;
+      spinning = false;
+      btn.disabled = false;
+      return;
+    }
+    
+    console.log("Результат:", result.type, result.symbols);
+    
+    // Перестраиваем барабаны с новыми символами и анимируем
+    for (let i = 0; i < 3; i++) {
+      buildReel(`ri${i}`, result.symbols);
+    }
+    
+    // Небольшая задержка перед анимацией
+    await new Promise(r => setTimeout(r, 50));
+    
+    // Анимируем все барабаны
+    for (let i = 0; i < 3; i++) {
+      await animateReel(`ri${i}`, i * 120, 0.5 + i * 0.1);
+    }
+    
+    // Обновляем баланс
+    document.getElementById('balVal').textContent = result.balance;
+    stats.spins++;
+    
+    if (result.type === 'jackpot' || result.type === 'three') {
+      msg.style.color = '#f0b429';
+      msg.textContent = `🎁 Выиграл ${result.gift.name}!`;
+      stats.won++;
+      showToast(`${result.gift.name} в инвентаре!`);
+    } else if (result.type === 'two') {
+      msg.style.color = '#3ddc84';
+      msg.textContent = `+5 ⭐`;
+    } else {
+      msg.style.color = '#5a556e';
+      msg.textContent = '—';
+    }
+    
+    document.getElementById('sSpins').textContent = stats.spins;
+    document.getElementById('sWon').textContent = stats.won;
+    
+  } catch (err) {
+    console.error(err);
+    msg.textContent = 'Ошибка';
   }
-  
-  console.log("Сервер прислал:", result.symbols); // Для отладки
-  
-  // ОБНОВЛЯЕМ ВИЗУАЛ НА ТО, ЧТО ПРИСЛАЛ СЕРВЕР
-  for (let i = 0; i < 3; i++) {
-    const total = buildReel(`ri${i}`, result.symbols);
-    await animReel(`ri${i}`, total, i * 100, 0.5);
-  }
-  
-  // Обновляем баланс и статистику
-  document.getElementById('balVal').textContent = result.balance;
-  stats.spins++;
-  
-  if (result.type === 'jackpot' || result.type === 'three') {
-    msg.style.color = '#f0b429';
-    msg.textContent = `🎁 Выиграл ${result.gift.name}!`;
-    stats.won++;
-    showToast(`${result.gift.name} в инвентаре!`);
-  } else if (result.type === 'two') {
-    msg.style.color = '#3ddc84';
-    msg.textContent = `+5 ⭐`;
-  } else {
-    msg.style.color = '#5a556e';
-    msg.textContent = '—';
-  }
-  
-  document.getElementById('sSpins').textContent = stats.spins;
-  document.getElementById('sWon').textContent = stats.won;
   
   spinning = false;
   btn.disabled = false;
@@ -302,6 +305,13 @@ async function loadBalance() {
     const d = await r.json();
     document.getElementById('balVal').textContent = d.balance ?? 0;
   } catch {}
+}
+
+// Инициализация
+function initReels() {
+  for (let i = 0; i < 3; i++) {
+    buildReel(`ri${i}`, ["banana", "lemon", "apple"]);
+  }
 }
 
 initReels();
