@@ -6,45 +6,53 @@
 <title>Casino</title>
 <script src="https://telegram.org/js/telegram-web-app.js"></script>
 <style>
+:root {
+  --bg: #0d0d14;
+  --card: #15151f;
+  --border: #252535;
+  --gold: #f0b429;
+  --text: #f0eaff;
+  --muted: #5a556e;
+}
 * { margin:0; padding:0; box-sizing:border-box; }
 body {
-  background: #0d0d14;
-  color: white;
-  font-family: system-ui;
+  background: var(--bg);
+  color: var(--text);
+  font-family: system-ui, sans-serif;
   display: flex;
   flex-direction: column;
   align-items: center;
   padding-bottom: 90px;
 }
-.topbar { width:100%; display:flex; justify-content:space-between; padding:14px 16px; }
-.logo { font-size:26px; font-weight:bold; color:#f0b429; }
-.balance-pill { background:#15151f; border-radius:99px; padding:6px 14px; display:flex; gap:5px; }
-.tabs { display:flex; gap:4px; background:#15151f; border-radius:12px; padding:4px; margin:0 16px; width:calc(100% - 32px); }
-.tab { flex:1; padding:8px; background:none; color:#5a556e; font-weight:700; cursor:pointer; }
-.tab.active { background:#252535; color:white; }
-.page { width:100%; display:none; flex-direction:column; align-items:center; }
-.page.active { display:flex; }
-.machine { width:calc(100% - 32px); max-width:360px; background:#15151f; border-radius:20px; padding:16px; }
-.reels-outer { background:#080810; border-radius:12px; padding:4px; }
-.reels { display:flex; gap:4px; }
-.reel { flex:1; height:276px; overflow:hidden; border-radius:8px; background:#00000030; }
-.reel-inner { display:flex; flex-direction:column; transition: transform 0.4s ease-out; }
-.sym-cell { height:92px; display:flex; align-items:center; justify-content:center; font-size:64px; }
-.spin-btn { width:100%; height:52px; background:linear-gradient(135deg,#e07b00,#f0b429); border:none; border-radius:12px; font-size:22px; font-weight:bold; margin-top:8px; cursor:pointer; }
-.spin-btn:disabled { opacity:0.5; }
-.win-msg { text-align:center; font-size:14px; padding:8px; min-height:50px; }
-.stats { display:flex; gap:8px; margin-top:10px; }
-.stat { background:#15151f; border-radius:12px; padding:10px; flex:1; text-align:center; }
-.paytable-btn { background:none; border:1px solid #252535; border-radius:10px; color:#5a556e; padding:7px; margin-top:10px; cursor:pointer; width:100%; }
-.paytable-box { display:none; background:#080810; border-radius:10px; padding:12px; margin-top:6px; }
-.paytable-box.open { display:block; }
-.pt-row { display:flex; justify-content:space-between; padding:6px 0; }
-.inv-grid { display:grid; grid-template-columns:1fr 1fr; gap:10px; }
-.inv-card { background:#15151f; border-radius:14px; padding:14px; text-align:center; }
-.inv-letter { font-size:52px; font-weight:800; color:#f0b429; }
-.withdraw-btn { background:#2a2a3e; border:none; border-radius:8px; color:white; padding:7px; cursor:pointer; width:100%; }
-.toast { position:fixed; bottom:100px; left:50%; transform:translateX(-50%); background:#1e1e2e; border-radius:10px; padding:10px 20px; opacity:0; transition:all .3s; pointer-events:none; z-index:100; }
-.toast.show { opacity:1; }
+.topbar { width: 100%; display: flex; justify-content: space-between; padding: 14px 16px; }
+.logo { font-size: 26px; font-weight: bold; color: var(--gold); }
+.balance-pill { background: #15151f; border-radius: 99px; padding: 6px 14px; display: flex; gap: 5px; }
+.tabs { display: flex; gap: 4px; background: #15151f; border-radius: 12px; padding: 4px; margin: 0 16px; width: calc(100% - 32px); }
+.tab { flex: 1; padding: 8px; background: none; color: #5a556e; font-weight: 700; cursor: pointer; }
+.tab.active { background: #252535; color: white; }
+.page { width: 100%; display: none; flex-direction: column; align-items: center; }
+.page.active { display: flex; }
+.machine { width: calc(100% - 32px); max-width: 360px; background: #15151f; border-radius: 20px; padding: 16px; }
+.reels-outer { background: #080810; border-radius: 12px; padding: 4px; }
+.reels { display: flex; gap: 4px; }
+.reel { flex: 1; height: 276px; overflow: hidden; position: relative; }
+.reel-inner { display: flex; flex-direction: column; transition: transform 0.5s cubic-bezier(0.22, 0.68, 0, 1.2); }
+.sym-cell { height: 92px; display: flex; align-items: center; justify-content: center; font-size: 64px; }
+.spin-btn { width: 100%; height: 52px; background: linear-gradient(135deg, #e07b00, #f0b429); border: none; border-radius: 12px; font-size: 22px; font-weight: bold; margin-top: 8px; cursor: pointer; }
+.spin-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+.win-msg { text-align: center; font-size: 14px; padding: 8px; }
+.stats { display: flex; gap: 8px; margin-top: 10px; }
+.stat { background: #15151f; border-radius: 12px; padding: 10px; flex: 1; text-align: center; }
+.paytable-btn { background: none; border: 1px solid #252535; border-radius: 10px; color: #5a556e; padding: 7px; margin-top: 10px; cursor: pointer; width: 100%; }
+.paytable-box { display: none; background: #080810; border-radius: 10px; padding: 12px; margin-top: 6px; }
+.paytable-box.open { display: block; }
+.pt-row { display: flex; justify-content: space-between; padding: 6px 0; }
+.inv-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.inv-card { background: #15151f; border-radius: 14px; padding: 14px; text-align: center; }
+.inv-letter { font-size: 52px; font-weight: 800; color: var(--gold); }
+.withdraw-btn { background: #2a2a3e; border: none; border-radius: 8px; color: white; padding: 7px; cursor: pointer; width: 100%; }
+.toast { position: fixed; bottom: 100px; left: 50%; transform: translateX(-50%); background: #1e1e2e; border-radius: 10px; padding: 10px 20px; opacity: 0; transition: all .3s; pointer-events: none; }
+.toast.show { opacity: 1; }
 </style>
 </head>
 <body>
@@ -68,18 +76,18 @@ body {
         <div class="reel"><div class="reel-inner" id="ri2"></div></div>
       </div>
     </div>
-    <div class="win-msg" id="winMsg">⚡ Нажми КРУТИТЬ ⚡</div>
+    <div class="win-msg" id="winMsg">Нажми крутить!</div>
     <button class="spin-btn" id="spinBtn" onclick="spin()">КРУТИТЬ</button>
     <div class="cost-label">30 ⭐ за спин</div>
     <button class="paytable-btn" onclick="togglePt(this)">Таблица выплат</button>
     <div class="paytable-box" id="ptBox">
-      <div class="pt-row"><span>777</span><span>🎁 Сигара</span></div>
-      <div class="pt-row"><span>🍌🍌🍌</span><span>🎁 Факел</span></div>
-      <div class="pt-row"><span>🍋🍋🍋</span><span>🎁 Рамен</span></div>
-      <div class="pt-row"><span>🍏🍏🍏</span><span>🎁 Змея</span></div>
-      <div class="pt-row"><span>🍒🍒🍒</span><span>🎁 Мороженое</span></div>
-      <div class="pt-row"><span>🍇🍇🍇</span><span>🎁 Happy B-day</span></div>
-      <div class="pt-row"><span>Любые два</span><span>+5 ⭐</span></div>
+      <div class="pt-row"><span>777</span><span>Сигара</span></div>
+      <div class="pt-row"><span>🍌🍌🍌</span><span>Факел</span></div>
+      <div class="pt-row"><span>🍋🍋🍋</span><span>Рамен</span></div>
+      <div class="pt-row"><span>🍏🍏🍏</span><span>Змея</span></div>
+      <div class="pt-row"><span>🍒🍒🍒</span><span>Мороженое</span></div>
+      <div class="pt-row"><span>🍇🍇🍇</span><span>Happy B-day</span></div>
+      <div class="pt-row"><span>Любые два</span><span>+5⭐</span></div>
     </div>
   </div>
   <div class="stats">
@@ -89,7 +97,7 @@ body {
 </div>
 
 <div class="page" id="page-inv">
-  <div class="inv-page"><div id="invContent">Загрузка...</div></div>
+  <div class="inv-page"><div id="invContent"></div></div>
 </div>
 <div class="toast" id="toast"></div>
 
@@ -100,7 +108,14 @@ const initData = tg?.initData || "";
 const API = window.location.origin;
 
 function getEmoji(sym) {
-  const map = { seven:"7", banana:"🍌", lemon:"🍋", apple:"🍏", cherry:"🍒", grape:"🍇" };
+  const map = {
+    "seven": "7",
+    "banana": "🍌",
+    "lemon": "🍋",
+    "apple": "🍏",
+    "cherry": "🍒",
+    "grape": "🍇"
+  };
   return map[sym] || "?";
 }
 
@@ -108,162 +123,187 @@ let spinning = false;
 let stats = { spins: 0, won: 0 };
 
 function switchTab(tab) {
-  document.querySelectorAll('.tab').forEach((t,i)=>{
-    t.classList.toggle('active', (i===0 && tab==='slots') || (i===1 && tab==='inv'));
+  document.querySelectorAll('.tab').forEach((t, i) => {
+    t.classList.toggle('active', (i === 0 && tab === 'slots') || (i === 1 && tab === 'inv'));
   });
-  document.getElementById('page-slots').classList.toggle('active', tab==='slots');
-  document.getElementById('page-inv').classList.toggle('active', tab==='inv');
-  if (tab==='inv') loadInventory();
+  document.getElementById('page-slots').classList.toggle('active', tab === 'slots');
+  document.getElementById('page-inv').classList.toggle('active', tab === 'inv');
+  if (tab === 'inv') loadInventory();
 }
 
-// Главная функция: показывает ровно то, что пришло с сервера
 async function spin() {
-  if(spinning) return;
+  if (spinning) return;
   spinning = true;
+  
   const btn = document.getElementById('spinBtn');
-  const msgDiv = document.getElementById('winMsg');
+  const msg = document.getElementById('winMsg');
+  
   btn.disabled = true;
-  msgDiv.innerHTML = '🌀...';
-
-  try{
-    const res = await fetch(`${API}/api/spin`, {
-      method:'POST',
-      headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({init_data:initData})
+  msg.textContent = '';
+  
+  try {
+    const response = await fetch(`${API}/api/spin`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ init_data: initData })
     });
-    const data = await res.json();
-    if(data.error){ msgDiv.innerHTML = data.error; spinning=false; btn.disabled=false; return; }
-
-    console.log("Получено от сервера:", data.symbols);
-
-    // Перестраиваем каждый барабан ровно с теми символами, что пришли
-    for(let reelIdx = 0; reelIdx < 3; reelIdx++){
-      const reelInner = document.getElementById(`ri${reelIdx}`);
-      reelInner.innerHTML = '';
+    const result = await response.json();
+    
+    if (result.error) {
+      msg.textContent = result.error;
+      spinning = false;
+      btn.disabled = false;
+      return;
+    }
+    
+    console.log("Сервер прислал:", result.symbols);
+    
+    // Показываем то, что пришло с сервера
+    for (let i = 0; i < 3; i++) {
+      const inner = document.getElementById(`ri${i}`);
+      inner.innerHTML = '';
       
-      // Создаем много ячеек для анимации (15 штук)
-      for(let i = 0; i < 15; i++){
+      // Создаем 3 ячейки с эмодзи из сервера
+      for (let j = 0; j < 3; j++) {
         const cell = document.createElement('div');
         cell.className = 'sym-cell';
-        // Берем символ из пришедшего массива (по кругу)
-        const sym = data.symbols[i % 3];
-        cell.textContent = getEmoji(sym);
-        reelInner.appendChild(cell);
+        cell.textContent = getEmoji(result.symbols[j]);
+        inner.appendChild(cell);
       }
       
-      // Анимация прокрутки
-      reelInner.style.transform = 'translateY(0px)';
+      // Добавляем дубликаты для анимации
+      for (let j = 0; j < 10; j++) {
+        const cell = document.createElement('div');
+        cell.className = 'sym-cell';
+        cell.textContent = getEmoji(result.symbols[j % 3]);
+        inner.appendChild(cell);
+      }
+      
+      // Анимируем
+      inner.style.transition = 'none';
+      inner.style.transform = 'translateY(0)';
       setTimeout(() => {
-        const totalHeight = reelInner.children.length * 92;
-        const targetY = totalHeight - (3 * 92);
-        reelInner.style.transition = 'transform 0.4s cubic-bezier(0.2, 0.9, 0.4, 1.1)';
-        reelInner.style.transform = `translateY(-${targetY}px)`;
-      }, reelIdx * 100);
+        const totalH = inner.children.length * 92;
+        const target = totalH - (3 * 92);
+        inner.style.transition = 'transform 0.5s cubic-bezier(0.22, 0.68, 0, 1.2)';
+        inner.style.transform = `translateY(-${target}px)`;
+      }, i * 100);
     }
-
-    await new Promise(r => setTimeout(r, 600));
-
-    // Обновляем баланс
-    document.getElementById('balVal').textContent = data.balance;
+    
+    await new Promise(r => setTimeout(r, 800));
+    
+    document.getElementById('balVal').textContent = result.balance;
     stats.spins++;
-
-    if(data.type === 'jackpot'){
-      msgDiv.innerHTML = '🔥 ДЖЕКПОТ! СИГАРА! 🔥';
+    
+    if (result.type === 'jackpot' || result.type === 'three') {
+      msg.style.color = '#f0b429';
+      msg.textContent = `🎁 Выиграл ${result.gift.name}!`;
       stats.won++;
-      showToast('🔥 СИГАРА в инвентаре!');
-    } else if(data.type === 'three'){
-      msgDiv.innerHTML = `🎁 ВЫИГРАЛ ${data.gift.name}! 🎁`;
-      stats.won++;
-      showToast(`🎁 ${data.gift.name} в инвентаре!`);
-    } else if(data.type === 'two'){
-      msgDiv.innerHTML = '✨ +5 ЗВЁЗД ✨';
+      showToast(`${result.gift.name} в инвентаре!`);
+    } else if (result.type === 'two') {
+      msg.style.color = '#3ddc84';
+      msg.textContent = `+5 ⭐`;
     } else {
-      msgDiv.innerHTML = '😔 МИМО...';
+      msg.style.color = '#5a556e';
+      msg.textContent = '—';
     }
-
+    
     document.getElementById('sSpins').textContent = stats.spins;
     document.getElementById('sWon').textContent = stats.won;
-
-  } catch(e){
-    console.error(e);
-    msgDiv.innerHTML = 'Ошибка';
+    
+  } catch (err) {
+    console.error(err);
+    msg.textContent = 'Ошибка';
   }
-  spinning=false;
-  btn.disabled=false;
+  
+  spinning = false;
+  btn.disabled = false;
 }
 
-async function loadInventory(){
+async function loadInventory() {
   const cont = document.getElementById('invContent');
-  try{
+  cont.innerHTML = 'Загрузка...';
+  try {
     const res = await fetch(`${API}/api/inventory?init_data=${encodeURIComponent(initData)}`);
     const data = await res.json();
-    const items = data.items||[];
-    if(!items.length){ cont.innerHTML = 'Инвентарь пуст'; return; }
+    const items = data.items || [];
+    if (!items.length) {
+      cont.innerHTML = 'Инвентарь пуст';
+      return;
+    }
     const grid = document.createElement('div');
     grid.className = 'inv-grid';
-    const letters = {'Сигара':'С','Факел':'Ф','Рамен':'Р','Змея':'З','Мороженое':'М','Happy B-day':'Д'};
-    items.forEach(item=>{
+    const letters = { 'Сигара': 'С', 'Факел': 'Ф', 'Рамен': 'Р', 'Змея': 'З', 'Мороженое': 'М', 'Happy B-day': 'Д' };
+    items.forEach(item => {
       const div = document.createElement('div');
       div.className = 'inv-card';
-      div.innerHTML = `<div class="inv-letter">${letters[item.gift_name]||'?'}</div>
+      div.innerHTML = `<div class="inv-letter">${letters[item.gift_name] || '?'}</div>
                        <div>${item.gift_name}</div>
-                       <button class="withdraw-btn" onclick="withdraw(${item.id},this)">Вывести</button>`;
+                       <button class="withdraw-btn" onclick="withdraw(${item.id}, this)">Вывести</button>`;
       grid.appendChild(div);
     });
-    cont.innerHTML = ''; cont.appendChild(grid);
-  } catch(e){ cont.innerHTML = 'Ошибка'; }
+    cont.innerHTML = '';
+    cont.appendChild(grid);
+  } catch(e) {
+    cont.innerHTML = 'Ошибка';
+  }
 }
 
-async function withdraw(id,btn){
-  btn.disabled=true;
-  btn.textContent='...';
-  try{
-    const res = await fetch(`${API}/api/withdraw`,{
-      method:'POST',
-      headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({init_data:initData,item_id:id})
+async function withdraw(itemId, btn) {
+  btn.disabled = true;
+  btn.textContent = '...';
+  try {
+    const res = await fetch(`${API}/api/withdraw`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ init_data: initData, item_id: itemId })
     });
     const data = await res.json();
-    if(data.ok){ btn.closest('.inv-card')?.remove(); showToast('Отправлено'); }
-    else { btn.disabled=false; btn.textContent='Вывести'; }
-  } catch(e){ btn.disabled=false; btn.textContent='Вывести'; }
+    if (data.ok) {
+      btn.closest('.inv-card')?.remove();
+      showToast('Запрос отправлен');
+    } else {
+      btn.disabled = false;
+      btn.textContent = 'Вывести';
+    }
+  } catch(e) {
+    btn.disabled = false;
+    btn.textContent = 'Вывести';
+  }
 }
 
-function showToast(t){
-  const toast = document.getElementById('toast');
-  toast.textContent = t;
-  toast.classList.add('show');
-  setTimeout(()=>toast.classList.remove('show'),2000);
+function showToast(text) {
+  const t = document.getElementById('toast');
+  t.textContent = text;
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 2000);
 }
 
-function togglePt(btn){
+function togglePt(btn) {
   document.getElementById('ptBox').classList.toggle('open');
 }
 
-async function loadBalance(){
-  try{
+async function loadBalance() {
+  try {
     const r = await fetch(`${API}/api/balance?init_data=${encodeURIComponent(initData)}`);
     const d = await r.json();
-    document.getElementById('balVal').textContent = d.balance||0;
-  } catch(e){}
+    document.getElementById('balVal').textContent = d.balance ?? 0;
+  } catch {}
 }
 
-// Стартовая инициализация (красивые стартовые символы)
-function initReels(){
-  for(let i=0;i<3;i++){
-    const reel = document.getElementById(`ri${i}`);
-    reel.innerHTML = '';
-    for(let j=0;j<15;j++){
-      const cell = document.createElement('div');
-      cell.className = 'sym-cell';
-      const startSyms = ['🍌','🍋','🍏'];
-      cell.textContent = startSyms[j%3];
-      reel.appendChild(cell);
-    }
+// Стартовая инициализация
+for (let i = 0; i < 3; i++) {
+  const inner = document.getElementById(`ri${i}`);
+  inner.innerHTML = '';
+  for (let j = 0; j < 3; j++) {
+    const cell = document.createElement('div');
+    cell.className = 'sym-cell';
+    cell.textContent = '🍋';
+    inner.appendChild(cell);
   }
 }
-initReels();
+
 loadBalance();
 </script>
 </body>
-                            </html>
+</html>
