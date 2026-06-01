@@ -27,8 +27,8 @@ body {
 .machine { width:calc(100% - 32px); max-width:360px; background:#15151f; border-radius:20px; padding:16px; }
 .reels-outer { background:#080810; border-radius:12px; padding:4px; }
 .reels { display:flex; gap:4px; }
-.reel { flex:1; height:276px; overflow:hidden; border-radius:8px; }
-.reel-inner { display:flex; flex-direction:column; }
+.reel { flex:1; height:276px; overflow:hidden; border-radius:8px; background:#00000030; }
+.reel-inner { display:flex; flex-direction:column; transition: transform 0.4s ease-out; }
 .sym-cell { height:92px; display:flex; align-items:center; justify-content:center; font-size:64px; }
 .spin-btn { width:100%; height:52px; background:linear-gradient(135deg,#e07b00,#f0b429); border:none; border-radius:12px; font-size:22px; font-weight:bold; margin-top:8px; cursor:pointer; }
 .spin-btn:disabled { opacity:0.5; }
@@ -79,7 +79,7 @@ body {
       <div class="pt-row"><span>🍏🍏🍏</span><span>🎁 Змея</span></div>
       <div class="pt-row"><span>🍒🍒🍒</span><span>🎁 Мороженое</span></div>
       <div class="pt-row"><span>🍇🍇🍇</span><span>🎁 Happy B-day</span></div>
-      <div class="pt-row"><span>🍌🍌🍋</span><span>+5 ⭐</span></div>
+      <div class="pt-row"><span>Любые два</span><span>+5 ⭐</span></div>
     </div>
   </div>
   <div class="stats">
@@ -116,27 +116,7 @@ function switchTab(tab) {
   if (tab==='inv') loadInventory();
 }
 
-function showReels(symbols) {
-  for(let i=0; i<3; i++){
-    const reel = document.getElementById(`ri${i}`);
-    reel.innerHTML = '';
-    for(let j=0; j<20; j++){
-      const cell = document.createElement('div');
-      cell.className = 'sym-cell';
-      cell.textContent = getEmoji(symbols[j%3]);
-      reel.appendChild(cell);
-    }
-    const totalH = 20 * 92;
-    const target = totalH - (3 * 92);
-    reel.style.transition = 'none';
-    reel.style.transform = 'translateY(0)';
-    setTimeout(()=>{
-      reel.style.transition = 'transform 0.4s cubic-bezier(0.2,0.9,0.4,1.1)';
-      reel.style.transform = `translateY(-${target}px)`;
-    }, i*100);
-  }
-}
-
+// Главная функция: показывает ровно то, что пришло с сервера
 async function spin() {
   if(spinning) return;
   spinning = true;
@@ -154,19 +134,48 @@ async function spin() {
     const data = await res.json();
     if(data.error){ msgDiv.innerHTML = data.error; spinning=false; btn.disabled=false; return; }
 
-    showReels(data.symbols);
-    await new Promise(r=>setTimeout(r,600));
+    console.log("Получено от сервера:", data.symbols);
 
+    // Перестраиваем каждый барабан ровно с теми символами, что пришли
+    for(let reelIdx = 0; reelIdx < 3; reelIdx++){
+      const reelInner = document.getElementById(`ri${reelIdx}`);
+      reelInner.innerHTML = '';
+      
+      // Создаем много ячеек для анимации (15 штук)
+      for(let i = 0; i < 15; i++){
+        const cell = document.createElement('div');
+        cell.className = 'sym-cell';
+        // Берем символ из пришедшего массива (по кругу)
+        const sym = data.symbols[i % 3];
+        cell.textContent = getEmoji(sym);
+        reelInner.appendChild(cell);
+      }
+      
+      // Анимация прокрутки
+      reelInner.style.transform = 'translateY(0px)';
+      setTimeout(() => {
+        const totalHeight = reelInner.children.length * 92;
+        const targetY = totalHeight - (3 * 92);
+        reelInner.style.transition = 'transform 0.4s cubic-bezier(0.2, 0.9, 0.4, 1.1)';
+        reelInner.style.transform = `translateY(-${targetY}px)`;
+      }, reelIdx * 100);
+    }
+
+    await new Promise(r => setTimeout(r, 600));
+
+    // Обновляем баланс
     document.getElementById('balVal').textContent = data.balance;
     stats.spins++;
 
-    if(data.type==='jackpot'){
+    if(data.type === 'jackpot'){
       msgDiv.innerHTML = '🔥 ДЖЕКПОТ! СИГАРА! 🔥';
       stats.won++;
-    } else if(data.type==='three'){
+      showToast('🔥 СИГАРА в инвентаре!');
+    } else if(data.type === 'three'){
       msgDiv.innerHTML = `🎁 ВЫИГРАЛ ${data.gift.name}! 🎁`;
       stats.won++;
-    } else if(data.type==='two'){
+      showToast(`🎁 ${data.gift.name} в инвентаре!`);
+    } else if(data.type === 'two'){
       msgDiv.innerHTML = '✨ +5 ЗВЁЗД ✨';
     } else {
       msgDiv.innerHTML = '😔 МИМО...';
@@ -174,7 +183,9 @@ async function spin() {
 
     document.getElementById('sSpins').textContent = stats.spins;
     document.getElementById('sWon').textContent = stats.won;
+
   } catch(e){
+    console.error(e);
     msgDiv.innerHTML = 'Ошибка';
   }
   spinning=false;
@@ -237,21 +248,22 @@ async function loadBalance(){
   } catch(e){}
 }
 
-// Старт
-function initDemo(){
+// Стартовая инициализация (красивые стартовые символы)
+function initReels(){
   for(let i=0;i<3;i++){
     const reel = document.getElementById(`ri${i}`);
     reel.innerHTML = '';
-    for(let j=0;j<20;j++){
+    for(let j=0;j<15;j++){
       const cell = document.createElement('div');
       cell.className = 'sym-cell';
-      cell.textContent = ['🍌','🍋','🍏'][j%3];
+      const startSyms = ['🍌','🍋','🍏'];
+      cell.textContent = startSyms[j%3];
       reel.appendChild(cell);
     }
   }
 }
-initDemo();
+initReels();
 loadBalance();
 </script>
 </body>
-  </html>
+                            </html>
