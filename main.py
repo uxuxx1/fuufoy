@@ -31,26 +31,26 @@ from telegram.ext import (
     filters,
 )
 
-# ==================== КОНФИГ ====================
-BOT_TOKEN = "8809004874:AAGXOZ58KnqhN1FxGS2qumV1T0Hio03bero"
+# ==================== КОНФИГУРАЦИЯ ====================
+BOT_TOKEN  = "8809004874:AAGXOZ58KnqhN1FxGS2qumV1T0Hio03bero"
 WEBAPP_URL = "https://fuufoy-production-ffaa.up.railway.app"
-OWNER_IDS = [297562307, 6498621298]
-PORT = int(os.environ.get("PORT", 8080))
+OWNER_IDS  = [297562307, 6498621298]
+PORT       = int(os.environ.get("PORT", 8080))
 
 logging.basicConfig(level=logging.INFO)
 log = logging.getLogger(__name__)
 
-# ==================== ПОДАРКИ ====================
+# ==================== ПОДАРКИ (NFT) ====================
 GIFTS = [
     {"id": "banana", "name": "Факел", "letter": "Ф"},
-    {"id": "lemon", "name": "Рамен", "letter": "Р"},
-    {"id": "apple", "name": "Змея", "letter": "З"},
+    {"id": "lemon",  "name": "Рамен", "letter": "Р"},
+    {"id": "apple",  "name": "Змея", "letter": "З"},
     {"id": "cherry", "name": "Мороженое", "letter": "М"},
-    {"id": "grape", "name": "Happy B-day", "letter": "Д"},
+    {"id": "grape",  "name": "Happy B-day", "letter": "Д"},
 ]
 CIGAR = {"id": "seven", "name": "Сигара", "letter": "С"}
 
-SPIN_COST = 30
+SPIN_COST   = 30
 WIN_2_STARS = 5
 OWNER_BONUS = 1000
 
@@ -66,17 +66,17 @@ def init_db():
     c = db()
     c.executescript("""
         CREATE TABLE IF NOT EXISTS users (
-            user_id INTEGER PRIMARY KEY,
+            user_id  INTEGER PRIMARY KEY,
             username TEXT,
-            balance INTEGER DEFAULT 0
+            balance  INTEGER DEFAULT 0
         );
         CREATE TABLE IF NOT EXISTS inventory (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            user_id INTEGER,
-            gift_id TEXT,
+            id       INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id  INTEGER,
+            gift_id  TEXT,
             gift_name TEXT,
             gift_file TEXT,
-            won_at DATETIME DEFAULT CURRENT_TIMESTAMP
+            won_at   DATETIME DEFAULT CURRENT_TIMESTAMP
         );
     """)
     c.commit()
@@ -85,11 +85,14 @@ def init_db():
 def ensure_user(user_id: int, username: str):
     c = db()
     row = c.execute("SELECT balance FROM users WHERE user_id=?", (user_id,)).fetchone()
+    
     if not row:
         if user_id in OWNER_IDS:
-            c.execute("INSERT INTO users (user_id, username, balance) VALUES (?,?,?)", (user_id, username, OWNER_BONUS))
+            c.execute("INSERT INTO users (user_id, username, balance) VALUES (?,?,?)", 
+                      (user_id, username, OWNER_BONUS))
         else:
-            c.execute("INSERT INTO users (user_id, username, balance) VALUES (?,?,?)", (user_id, username, 0))
+            c.execute("INSERT INTO users (user_id, username, balance) VALUES (?,?,?)", 
+                      (user_id, username, 0))
     c.commit()
     c.close()
 
@@ -129,13 +132,17 @@ def add_to_inventory(user_id: int, gift: dict) -> int:
 
 def get_inventory(user_id: int) -> list:
     c = db()
-    rows = c.execute("SELECT * FROM inventory WHERE user_id=? ORDER BY won_at DESC", (user_id,)).fetchall()
+    rows = c.execute(
+        "SELECT * FROM inventory WHERE user_id=? ORDER BY won_at DESC", (user_id,)
+    ).fetchall()
     c.close()
     return [dict(r) for r in rows]
 
 def remove_from_inventory(item_id: int, user_id: int) -> dict | None:
     c = db()
-    row = c.execute("SELECT * FROM inventory WHERE id=? AND user_id=?", (item_id, user_id)).fetchone()
+    row = c.execute(
+        "SELECT * FROM inventory WHERE id=? AND user_id=?", (item_id, user_id)
+    ).fetchone()
     if not row:
         c.close()
         return None
@@ -144,41 +151,45 @@ def remove_from_inventory(item_id: int, user_id: int) -> dict | None:
     c.close()
     return dict(row)
 
-# ==================== ЛОГИКА СЛОТОВ (НОРМАЛЬНЫЕ ШАНСЫ) ====================
+# ==================== ЛОГИКА СЛОТОВ ====================
 def do_spin() -> dict:
-    all_symbols = ["banana", "lemon", "apple", "cherry", "grape"]
     r = random.random() * 100
-
-    # 0.5% джекпот (сигара)
-    if r < 0.5:
-        return {"type": "jackpot", "symbols": ["seven", "seven", "seven"], "gift": CIGAR}
-
-    # 5% на три одинаковых (по 1% на каждый фрукт)
-    elif r < 0.5 + 1:
-        return {"type": "three", "symbols": ["banana", "banana", "banana"], "gift": GIFTS[0]}
-    elif r < 1.5 + 1:
-        return {"type": "three", "symbols": ["lemon", "lemon", "lemon"], "gift": GIFTS[1]}
-    elif r < 2.5 + 1:
-        return {"type": "three", "symbols": ["apple", "apple", "apple"], "gift": GIFTS[2]}
-    elif r < 3.5 + 1:
-        return {"type": "three", "symbols": ["cherry", "cherry", "cherry"], "gift": GIFTS[3]}
-    elif r < 4.5 + 1:
-        return {"type": "three", "symbols": ["grape", "grape", "grape"], "gift": GIFTS[4]}
-
-    # 20% на два одинаковых
-    elif r < 5.5 + 20:
-        pair = random.choice(all_symbols)
-        third = random.choice([s for s in all_symbols if s != pair])
-        symbols = [pair, pair, third]
+    
+    # 0.1% джекпот (777)
+    if r < 0.1:
+        return {"type": "jackpot", "symbols": ["seven"] * 3, "gift": CIGAR}
+    
+    # 0.5% для каждого из 5 подарков = 2.5%
+    elif r < 0.1 + 0.5:
+        return {"type": "three", "symbols": ["banana"] * 3, "gift": GIFTS[0]}
+    elif r < 0.6 + 0.5:
+        return {"type": "three", "symbols": ["lemon"] * 3, "gift": GIFTS[1]}
+    elif r < 1.1 + 0.5:
+        return {"type": "three", "symbols": ["apple"] * 3, "gift": GIFTS[2]}
+    elif r < 1.6 + 0.5:
+        return {"type": "three", "symbols": ["cherry"] * 3, "gift": GIFTS[3]}
+    elif r < 2.1 + 0.5:
+        return {"type": "three", "symbols": ["grape"] * 3, "gift": GIFTS[4]}
+    
+    # 10% на два одинаковых
+    elif r < 2.6 + 10:
+        sym = random.choice(GIFTS)["id"]
+        others = [g["id"] for g in GIFTS if g["id"] != sym]
+        third = random.choice(others)
+        symbols = [sym, sym, third]
         random.shuffle(symbols)
         return {"type": "two", "symbols": symbols, "stars": WIN_2_STARS}
-
-    # Остальное (74.5%) — три разных символа
+    
+    # Проигрыш (остальное)
     else:
-        symbols = random.sample(all_symbols, 3)
-        return {"type": "nothing", "symbols": symbols}
+        # Все разные символы
+        chosen = random.sample([g["id"] for g in GIFTS] + ["seven"], 3)
+        # Убедимся что не три одинаковых
+        while len(set(chosen)) == 1:
+            chosen = random.sample([g["id"] for g in GIFTS] + ["seven"], 3)
+        return {"type": "nothing", "symbols": chosen}
 
-# ==================== ПРОВЕРКА TELEGRAM ====================
+# ==================== ПРОВЕРКА ДАННЫХ ОТ TELEGRAM ====================
 def verify_init_data(init_data: str) -> dict | None:
     try:
         parsed = dict(parse_qsl(init_data, strict_parsing=True))
@@ -201,11 +212,15 @@ async def cmd_start(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
     user = update.effective_user
     ensure_user(user.id, user.username or user.first_name)
     bal = get_balance(user.id)
+    
     kb = InlineKeyboardMarkup([
         [InlineKeyboardButton("🎰 Играть", web_app=WebAppInfo(url=WEBAPP_URL))],
         [InlineKeyboardButton(f"⭐ Баланс: {bal}", callback_data="balance")],
     ])
-    await update.message.reply_text(f"Привет, {user.first_name}!\nДобро пожаловать в казино 🎰", reply_markup=kb)
+    await update.message.reply_text(
+        f"Привет, {user.first_name}!\n\nДобро пожаловать в казино 🎰\nКрути — выигрывай подарки!",
+        reply_markup=kb
+    )
 
 async def cb_balance(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
     q = update.callback_query
@@ -215,13 +230,16 @@ async def cb_balance(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
         [InlineKeyboardButton("💳 Пополнить", callback_data="topup")],
         [InlineKeyboardButton("🔙 Назад", callback_data="back")],
     ])
-    await q.edit_message_text(f"⭐ Баланс: {bal} Stars", reply_markup=kb)
+    await q.edit_message_text(f"⭐ Твой баланс: *{bal} Stars*", parse_mode="Markdown", reply_markup=kb)
 
 async def cb_topup(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
     q = update.callback_query
     await q.answer()
     ctx.user_data["awaiting_topup"] = True
-    await q.edit_message_text("Введи сумму пополнения:")
+    await q.edit_message_text(
+        "💳 Введи сумму пополнения (целое число, минимум 1):\n\nНапример: 50",
+        parse_mode="Markdown"
+    )
 
 async def cb_back(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
     q = update.callback_query
@@ -232,19 +250,22 @@ async def cb_back(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
         [InlineKeyboardButton("🎰 Играть", web_app=WebAppInfo(url=WEBAPP_URL))],
         [InlineKeyboardButton(f"⭐ Баланс: {bal}", callback_data="balance")],
     ])
-    await q.edit_message_text(f"Привет, {user.first_name}!\nДобро пожаловать в казино 🎰", reply_markup=kb)
+    await q.edit_message_text(
+        f"Привет, {user.first_name}!\n\nДобро пожаловать в казино 🎰\nКрути — выигрывай подарки!",
+        reply_markup=kb
+    )
 
 async def msg_handler(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
     if not ctx.user_data.get("awaiting_topup"):
         return
     text = update.message.text.strip()
     if not text.isdigit() or int(text) < 1:
-        await update.message.reply_text("Введи число больше 0")
+        await update.message.reply_text("❌ Целое число, минимум 1. Попробуй ещё раз:")
         return
     amount = int(text)
     ctx.user_data["awaiting_topup"] = False
     await update.message.reply_invoice(
-        title="Пополнение",
+        title="Пополнение баланса",
         description=f"Пополнение на {amount} Stars",
         payload=f"topup_{update.effective_user.id}_{amount}",
         currency="XTR",
@@ -259,15 +280,18 @@ async def payment_done(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
     parts = payload.split("_")
     user_id, amount = int(parts[1]), int(parts[2])
     add_balance(user_id, amount)
-    await update.message.reply_text(f"✅ Пополнено {amount} Stars!")
+    await update.message.reply_text(
+        f"✅ Пополнено {amount} Stars!\nНовый баланс: {get_balance(user_id)} Stars",
+        parse_mode="Markdown"
+    )
 
 def build_tg_app():
     global tg_app
     tg_app = Application.builder().token(BOT_TOKEN).build()
     tg_app.add_handler(CommandHandler("start", cmd_start))
     tg_app.add_handler(CallbackQueryHandler(cb_balance, pattern="^balance$"))
-    tg_app.add_handler(CallbackQueryHandler(cb_topup, pattern="^topup$"))
-    tg_app.add_handler(CallbackQueryHandler(cb_back, pattern="^back$"))
+    tg_app.add_handler(CallbackQueryHandler(cb_topup,   pattern="^topup$"))
+    tg_app.add_handler(CallbackQueryHandler(cb_back,    pattern="^back$"))
     tg_app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, msg_handler))
     tg_app.add_handler(PreCheckoutQueryHandler(precheckout))
     tg_app.add_handler(MessageHandler(filters.SUCCESSFUL_PAYMENT, payment_done))
@@ -281,7 +305,7 @@ async def lifespan(app: FastAPI):
     await tg_app.initialize()
     await tg_app.start()
     await tg_app.updater.start_polling()
-    log.info("Bot started")
+    log.info("Bot polling started")
     yield
     await tg_app.updater.stop()
     await tg_app.stop()
@@ -304,7 +328,7 @@ class SpinBody(BaseModel):
 async def route_spin(body: SpinBody):
     user = verify_init_data(body.init_data)
     if not user:
-        raise HTTPException(403, "Invalid")
+        raise HTTPException(403, "Невалидный initData")
     user_id = user["id"]
     username = user.get("username") or user.get("first_name", "unknown")
     ensure_user(user_id, username)
@@ -315,7 +339,7 @@ async def route_spin(body: SpinBody):
     if result["type"] in ("three", "jackpot"):
         gift = result["gift"]
         add_to_inventory(user_id, gift)
-        msg = f"🎁 Выигрыш!\n{gift['name']}\n@{username}"
+        msg = f"🎁 Новый выигрыш!\n\nПодарок: {gift['name']}\nID: {user_id}\nЮзер: @{username}"
         asyncio.create_task(asyncio.gather(*[tg_app.bot.send_message(oid, msg) for oid in OWNER_IDS]))
     elif result["type"] == "two":
         add_balance(user_id, WIN_2_STARS)
@@ -326,7 +350,7 @@ async def route_spin(body: SpinBody):
 async def route_balance(init_data: str):
     user = verify_init_data(init_data)
     if not user:
-        raise HTTPException(403, "Invalid")
+        raise HTTPException(403, "Невалидный initData")
     ensure_user(user["id"], user.get("username", ""))
     return {"balance": get_balance(user["id"])}
 
@@ -334,7 +358,7 @@ async def route_balance(init_data: str):
 async def route_inventory(init_data: str):
     user = verify_init_data(init_data)
     if not user:
-        raise HTTPException(403, "Invalid")
+        raise HTTPException(403, "Невалидный initData")
     return {"items": get_inventory(user["id"])}
 
 class WithdrawBody(BaseModel):
@@ -345,13 +369,13 @@ class WithdrawBody(BaseModel):
 async def route_withdraw(body: WithdrawBody):
     user = verify_init_data(body.init_data)
     if not user:
-        raise HTTPException(403, "Invalid")
+        raise HTTPException(403, "Невалидный initData")
     user_id = user["id"]
     username = user.get("username") or user.get("first_name", "unknown")
     item = remove_from_inventory(body.item_id, user_id)
     if not item:
-        raise HTTPException(404, "Not found")
-    msg = f"📤 Вывод!\n{item['gift_name']}\n@{username}"
+        raise HTTPException(404, "Предмет не найден")
+    msg = f"📤 Запрос на вывод подарка!\n\nПодарок: {item['gift_name']}\nID: {user_id}\nЮзер: @{username}"
     asyncio.create_task(asyncio.gather(*[tg_app.bot.send_message(oid, msg) for oid in OWNER_IDS]))
     return {"ok": True}
 
